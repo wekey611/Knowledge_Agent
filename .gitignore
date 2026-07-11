@@ -1,0 +1,47 @@
+# ==================== Python ====================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyc
+*.egg-info/
+dist/
+build/
+*.egg
+.pip-deprecated/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ==================== Virtual environment ====================
+.venv/
+venv/
+env/
+
+# ==================== IDE ====================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ==================== Environment ====================
+.env
+.env.*
+!.env.example
+
+# ==================== OS ====================
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ==================== Docker ====================
+.docker/
+
+# ==================== Database ====================
+*.db
+*.sqlite3
+
+# ==================== Logs ====================
+*.log
+
+# ==================== Alembic ====================
+alembic/versions/*.pyc

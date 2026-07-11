@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+sqlalchemy
+pymysql
+cryptography
+bcrypt
+email-validator
+alembic
+PyJWT
+python-dotenv
+pwdlib
+pwdlib[argon2]
+starlette
+pydantic
+python-jose
