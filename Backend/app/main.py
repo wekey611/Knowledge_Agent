@@ -1,9 +1,9 @@
 from fastapi import FastAPI
-from app import models
 from app.core.database import engine
 from app import routers
+from sqladmin import Admin
+from app.admin import UserAdmin
 
-models.user.Base.metadata.create_all(bind=engine)
 app = FastAPI()
 
 
@@ -18,3 +18,6 @@ async def say_hello(name: str):
 
 app.include_router(routers.user.router)
 app.include_router(routers.auth.router)
+
+admin = Admin(app, engine)
+admin.add_view(UserAdmin)
