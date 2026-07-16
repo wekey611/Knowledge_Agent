@@ -4,6 +4,7 @@ from app import routers
 from sqladmin import Admin
 from app.admin import UserAdmin
 
+
 app = FastAPI()
 
 
@@ -18,6 +19,7 @@ async def say_hello(name: str):
 
 app.include_router(routers.user.router)
 app.include_router(routers.auth.router)
+app.include_router(routers.admin.router)
 
 admin = Admin(app, engine)
 admin.add_view(UserAdmin)

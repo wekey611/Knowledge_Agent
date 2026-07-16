@@ -1,9 +1,10 @@
-from alembic.util import status
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, or_
+from sqlalchemy import select
 from app import schemas, models, core
 from starlette import status
+import hashlib
+from datetime import datetime, timedelta
 
 
 class UserRepository:
@@ -15,13 +16,13 @@ class UserRepository:
         new_user = models.user.User(**user_data.dict(exclude={"password"}), password=hashed_password)
         self.db.add(new_user)
         await self.db.commit()
-        await  self.db.refresh(new_user)
+        await self.db.refresh(new_user)
         return new_user
 
     # 登录账号
     async def login(self, user_credentials):
         stmt = select(models.user.User).where(models.user.User.email == user_credentials.username)
-        result = await  self.db.execute(stmt)
+        result = await self.db.execute(stmt)
         user = result.scalar_one_or_none()
 
         if not user:
@@ -35,19 +36,51 @@ class UserRepository:
 
         return access_token
 
-    # 注册申请
-    async def request(self, user: schemas.user.User_Request_In) -> models.user.User_request:
-        stmt = select(models.user.User_request).where(models.user.User_request.email == user.email, or_(
-            models.user.User_request.status == 'rejected',
-            models.user.User_request.status.is_(None)))
-        user_request = await self.db.execute(stmt)
+    async def register(self, token, password):
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
 
-        if user_request:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"您已发过申请!")
+        stmt = select(models.user.InviteToken).where(models.user.InviteToken.token_hash == token_hash)
+        result = await self.db.execute(stmt)
+        invite = result.scalar_one_or_none()
 
-        new_user_request = models.user.User_request(**user.dict(exclude={"status"}), status="pending")
+        if invite is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="无效的链接")
 
-        self.db.add(new_user_request)
-        await self.db.commit()
-        await self.db.refresh(new_user_request)
-        return new_user_request
+        if invite.expire_at < datetime.utcnow():
+            req_stmt = select(models.user.User_request).where(models.user.User_request.id == invite.request_id)
+            req_result = await self.db.execute(req_stmt)
+            req = req_result.scalar_one_or_none()
+            if req:
+                req.status = "expired"
+            await self.db.commit()
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="链接已过期")
+
+        if invite.used_at is not None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该链接已被使用")
+
+        user_stmt = select(models.user.User).where(models.user.User.email == invite.email)
+        user_result = await self.db.execute(user_stmt)
+        user = user_result.scalar_one_or_none()
+
+        if user is not None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="该邮箱已被注册")
+
+        # 标记 token 已使用
+        invite.used_at = datetime.utcnow()
+
+        # 更新申请单状态
+        req_stmt = select(models.user.User_request).where(
+            models.user.User_request.id == invite.request_id
+        )
+        req_result = await self.db.execute(req_stmt)
+        req = req_result.scalar_one_or_none()
+        if req:
+            req.status = "registered"
+
+        # await self.db.commit()
+
+        hashed_password = core.security.get_password_hash(password)
+        user_data = schemas.user.UserCreate(email=invite.email, password=password)
+        new_user = await self.create(user_data, hashed_password)
+
+        return new_user
