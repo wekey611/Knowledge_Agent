@@ -11,4 +11,14 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30 # 超过多少分钟重新验证
 
 # ip
-url = "http://127.0.0.1:8000/"
+url = "http://127.0.0.1:8000"
+
+# 邮箱相关配置
+MAIL_USERNAME = os.environ["MAIL_USERNAME"]
+MAIL_PASSWORD = os.environ["MAIL_PASSWORD"]
+MAIL_FROM = os.environ["MAIL_FROM"]
+MAIL_PORT = int(os.environ.get("MAIL_PORT", "465"))
+MAIL_SERVER = os.environ.get("MAIL_SERVER", "smtp.qq.com")
+MAIL_FROM_NAME = os.environ.get("MAIL_FROM_NAME", "AI-Name")
+MAIL_STARTTLS = os.environ.get("MAIL_STARTTLS", "False").lower() == "true"
+MAIL_SSL_TLS = os.environ.get("MAIL_SSL_TLS", "True").lower() == "true"

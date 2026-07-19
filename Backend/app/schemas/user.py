@@ -29,6 +29,11 @@ class UserRequestOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class InviteTokenInfoOut(BaseModel):
+    email: EmailStr
+    expired: bool = False
+    used: bool = False
+
 class User_Register_In(BaseModel):
     token:str
     password:str

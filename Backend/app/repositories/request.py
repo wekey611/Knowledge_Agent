@@ -68,7 +68,7 @@ class RequestRepository:
 
         await self.db.commit()
 
-        register_url = f"http://{settings.url}/register?token={new_token}"
+        register_url = f"{settings.url}/register?token={new_token}"
         print(register_url)
 
         return {

@@ -26,7 +26,7 @@ class User_request(Base):
     email = Column(String(100), nullable=False)
     reason = Column(String(1000))
     status = Column(String(20))
-    # created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
+    created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
     # approved_at = Column(TIMESTAMP(timezone=True))
     # expire_at = Column(TIMESTAMP(timezone=True))
     invite_tokens = relationship("InviteToken", back_populates="request")

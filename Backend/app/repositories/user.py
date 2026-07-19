@@ -36,6 +36,22 @@ class UserRepository:
 
         return access_token
 
+    async def get_invite_info(self, token: str) -> schemas.user.InviteTokenInfoOut:
+        """查询 token 信息"""
+        token_hash = hashlib.sha256(token.encode()).hexdigest()
+        stmt = select(models.user.InviteToken).where(models.user.InviteToken.token_hash == token_hash)
+        result = await self.db.execute(stmt)
+        invite = result.scalar_one_or_none()
+
+        if invite is None:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="无效的链接")
+
+        return schemas.user.InviteTokenInfoOut(
+            email=invite.email,
+            expired=invite.expire_at < datetime.utcnow(),
+            used=invite.used_at is not None,
+        )
+
     async def register(self, token, password):
         token_hash = hashlib.sha256(token.encode()).hexdigest()
 

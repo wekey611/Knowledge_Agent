@@ -3,6 +3,7 @@ from app.core.database import engine
 from app import routers
 from sqladmin import Admin
 from app.admin import UserAdmin
+from fastapi.responses import FileResponse
 
 
 app = FastAPI()
@@ -16,6 +17,10 @@ async def root():
 @app.get("/hello/{name}")
 async def say_hello(name: str):
     return {"message": f"Hello {name}"}
+
+@app.get("/register")
+async def register_page():
+    return FileResponse("app/static/register.html")
 
 app.include_router(routers.user.router)
 app.include_router(routers.auth.router)

@@ -32,11 +32,22 @@ async def user_request(user: schemas.user.User_Request_In, db: AsyncSession = De
     repo = repositories.request.RequestRepository(db)
     return await repo.request(user)
 
-@router.post("/register",response_model=schemas.user.UserRegisterOut)
+
+@router.post("/register", response_model=schemas.user.UserRegisterOut)
 async def user_register(
-        data:schemas.user.User_Register_In,
-        db:AsyncSession=Depends(get_db)
+        data: schemas.user.User_Register_In,
+        db: AsyncSession = Depends(get_db)
 ):
     repo = repositories.user.UserRepository(db)
 
-    return await repo.register(data.token,data.password)
+    return await repo.register(data.token, data.password)
+
+
+@router.get("/invite-info", response_model=schemas.user.InviteTokenInfoOut)
+async def invite_info(
+        token: str,
+        db: AsyncSession = Depends(get_db)
+):
+    """查询邀请 token 信息（邮箱、过期状态）"""
+    repo = repositories.user.UserRepository(db)
+    return await repo.get_invite_info(token)
