@@ -10,6 +10,7 @@ build/
 .pip-deprecated/
 pip-log.txt
 pip-delete-this-directory.txt
+.claude/
 
 # ==================== Virtual environment ====================
 .venv/
@@ -45,3 +46,20 @@ Desktop.ini
 
 # ==================== Alembic ====================
 alembic/versions/*.pyc
+
+# ==================== Node.js / Frontend ====================
+node_modules/
+Frontend/node_modules/
+
+# ==================== Frontend build output ====================
+Frontend/dist/
+
+# ==================== Package manager lockfiles (only track one) ====================
+# keep npm, ignore the rest
+Frontend/package-lock.json
+Frontend/yarn.lock
+Frontend/pnpm-lock.yaml
+Frontend/.pnpm-store
+
+# ==================== Frontend dev server & cache ====================
+Frontend/.vite/
