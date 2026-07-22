@@ -25,6 +25,7 @@ async def register_page():
 app.include_router(routers.user.router)
 app.include_router(routers.auth.router)
 app.include_router(routers.admin.router)
+app.include_router(routers.organization.router)
 
 admin = Admin(app, engine)
 admin.add_view(UserAdmin)

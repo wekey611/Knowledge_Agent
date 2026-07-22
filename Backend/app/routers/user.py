@@ -40,7 +40,7 @@ async def user_register(
 ):
     repo = repositories.user.UserRepository(db)
 
-    return await repo.register(data.token, data.password)
+    return await repo.register(data.token, data.username, data.password)
 
 
 @router.get("/invite-info", response_model=schemas.user.InviteTokenInfoOut)

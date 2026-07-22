@@ -1,1 +1,1 @@
-from . import user
+from . import user, auth, knowledge

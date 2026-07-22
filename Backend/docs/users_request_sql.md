@@ -18,3 +18,6 @@ class User_request(Base):
         rejected：已拒绝
         null：空
     }
+
+    alembic revision --autogenerate -m "修改的内容"
+    alembic upgrade head

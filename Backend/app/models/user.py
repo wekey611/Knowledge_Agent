@@ -1,5 +1,5 @@
 import enum
-from sqlalchemy import Column, Integer, String, Enum, ForeignKey
+from sqlalchemy import Column, Integer, String, Enum, ForeignKey, BigInteger
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import text
 from sqlalchemy.sql.sqltypes import TIMESTAMP
@@ -13,11 +13,17 @@ class UserRole(str, enum.Enum):
 
 class User(Base):
     __tablename__ = "users"
-    id = Column(Integer, primary_key=True, nullable=False)
+    id = Column(BigInteger, primary_key=True, nullable=False)
+    username = Column(String(100), nullable=False, unique=True)
     email = Column(String(100), nullable=False, unique=True)
     password = Column(String(200), nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
     role = Column(Enum(UserRole), default=UserRole.user, nullable=False)
+
+    organizations = relationship("Organization", back_populates="owner")
+    organization_members = relationship("OrganizationMember", back_populates="user")
+    knowledge_bases = relationship("KnowledgeBase", back_populates="owner")
+    documents = relationship("Document", back_populates="uploader")
 
 
 class User_request(Base):
@@ -30,6 +36,7 @@ class User_request(Base):
     # approved_at = Column(TIMESTAMP(timezone=True))
     # expire_at = Column(TIMESTAMP(timezone=True))
     invite_tokens = relationship("InviteToken", back_populates="request")
+
 
 class InviteToken(Base):
     __tablename__ = "invite_tokens"

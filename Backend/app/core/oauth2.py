@@ -7,7 +7,6 @@ from app.core.database import get_db
 from app import schemas, models, settings
 from sqlalchemy import select
 
-
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
 
 # openssl rand -hex 32 生成 SECRET_KEY
@@ -54,7 +53,32 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: AsyncSession
     # user = db.query(models.user.User).filter(models.user.User.id == token.id).first()
     return user
 
-async def require_admin (current_user = Depends(get_current_user)):
+
+async def require_admin(current_user=Depends(get_current_user)):
     if current_user.role != models.user.UserRole.admin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,detail="Admin access required")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    return current_user
+
+
+async def require_org_member(org_id: int, current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    stmt = select(models.auth.OrganizationMember).where(models.auth.OrganizationMember.user_id == current_user.id,
+                                                        models.auth.OrganizationMember.org_id == org_id)
+    result = await db.execute(stmt)
+    member = result.scalar_one_or_none()
+    if member is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Organization member access required")
+    return current_user
+
+
+async def require_org_admin(org_id: int, current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    stmt = select(models.auth.OrganizationMember).where(models.auth.OrganizationMember.user_id == current_user.id,
+                                                        models.auth.OrganizationMember.org_id == org_id,
+                                                        models.auth.OrganizationMember.role.in_(
+                                                            [models.auth.OrganizationRole.ADMIN,
+                                                             models.auth.OrganizationRole.OWNER]))
+    result = await db.execute(stmt)
+    member = result.scalar_one_or_none()
+    if member is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Admin or owner role required for this operation")
     return current_user

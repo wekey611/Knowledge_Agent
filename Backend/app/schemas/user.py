@@ -4,12 +4,14 @@ from pydantic import BaseModel, EmailStr
 
 
 class UserCreate(BaseModel):
+    username: str
     email: EmailStr
     password: str
 
 
 class UserOut(BaseModel):
     id: int
+    username: str
     email: EmailStr
     created_at: datetime
 
@@ -19,6 +21,7 @@ class UserOut(BaseModel):
 class User_Request_In(BaseModel):
     email: EmailStr
     reason: str
+
 
 class UserRequestOut(BaseModel):
     id: int
@@ -34,13 +37,16 @@ class InviteTokenInfoOut(BaseModel):
     expired: bool = False
     used: bool = False
 
+
 class User_Register_In(BaseModel):
-    token:str
-    password:str
+    token: str
+    username: str
+    password: str
+
 
 class UserRegisterOut(BaseModel):
     id: int
     email: EmailStr
-    created_at:datetime
+    created_at: datetime
 
     model_config = {"from_attributes": True}

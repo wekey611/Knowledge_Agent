@@ -52,7 +52,7 @@ class UserRepository:
             used=invite.used_at is not None,
         )
 
-    async def register(self, token, password):
+    async def register(self, token, username, password):
         token_hash = hashlib.sha256(token.encode()).hexdigest()
 
         stmt = select(models.user.InviteToken).where(models.user.InviteToken.token_hash == token_hash)
@@ -96,7 +96,7 @@ class UserRepository:
         # await self.db.commit()
 
         hashed_password = core.security.get_password_hash(password)
-        user_data = schemas.user.UserCreate(email=invite.email, password=password)
+        user_data = schemas.user.UserCreate(email=invite.email, username=username, password=password)
         new_user = await self.create(user_data, hashed_password)
 
         return new_user
