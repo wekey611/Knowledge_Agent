@@ -21,15 +21,11 @@ class OrganizationOut(BaseModel):
 
 
 class OrganizationMemberOut(BaseModel):
-    id: int
     role: str
-    user_id: int
-    org_id: int
     joined_at: datetime
     user: Optional[schemas.user.UserOut] = None
 
-    class Config:
-        from_attributes = True
+    model_config = {"from_attributes": True}
 
 class OrganizationDetail(BaseModel):
     id: int
@@ -42,3 +38,9 @@ class OrganizationDetail(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class OrganizationMemberCreate(BaseModel):
+    user_id: int
+    role: str
+
+class OrganizationMemberUpdate(BaseModel):
+    role: str

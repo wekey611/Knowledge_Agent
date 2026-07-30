@@ -1,12 +1,22 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
-from app.core.database import engine
+from app.core.database import engine, close_db_engine
 from app import routers
 from sqladmin import Admin
 from app.admin import UserAdmin
 from fastapi.responses import FileResponse
 
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """FastAPI 应用生命周期管理"""
+    yield
+    # 关闭数据库引擎，避免事件循环关闭后连接报错
+    await close_db_engine()
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.get("/")
@@ -18,9 +28,11 @@ async def root():
 async def say_hello(name: str):
     return {"message": f"Hello {name}"}
 
+
 @app.get("/register")
 async def register_page():
     return FileResponse("app/static/register.html")
+
 
 app.include_router(routers.user.router)
 app.include_router(routers.auth.router)

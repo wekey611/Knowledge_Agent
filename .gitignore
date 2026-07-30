@@ -11,6 +11,8 @@ build/
 pip-log.txt
 pip-delete-this-directory.txt
 .claude/
+docs/
+scripts/
 
 # ==================== Virtual environment ====================
 .venv/

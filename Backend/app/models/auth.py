@@ -41,8 +41,8 @@ class OrganizationMember(Base):
     role = Column(Enum(OrganizationRole), nullable=False, default=OrganizationRole.MEMBER, comment="角色: owner/admin/member")
     joined_at = Column(TIMESTAMP(timezone=True), server_default=text('now()'), comment="加入时间")
 
-    # 关系
-    organization = relationship("Organization", back_populates="members", lazy="selectin")
-    user = relationship("User", back_populates="organization_members", lazy="selectin")
+    # 关系 — 使用默认 lazy="select" 避免与 Organization.members (selectin) 双向加载导致递归
+    organization = relationship("Organization", back_populates="members")
+    user = relationship("User", back_populates="organization_members")
 
 

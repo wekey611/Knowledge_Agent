@@ -69,6 +69,18 @@ async def require_org_member(org_id: int, current_user=Depends(get_current_user)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Organization member access required")
     return current_user
 
+async def require_org_owner(org_id: int, current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    stmt = select(models.auth.OrganizationMember).where(models.auth.OrganizationMember.user_id == current_user.id,
+                                                        models.auth.OrganizationMember.org_id == org_id,
+                                                        models.auth.OrganizationMember.role ==
+                                                        models.auth.OrganizationRole.OWNER)
+    result = await db.execute(stmt)
+    member = result.scalar_one_or_none()
+    if member is None:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="Owner role required for this operation")
+    return current_user
+
 
 async def require_org_admin(org_id: int, current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     stmt = select(models.auth.OrganizationMember).where(models.auth.OrganizationMember.user_id == current_user.id,
