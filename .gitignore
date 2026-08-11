@@ -13,6 +13,7 @@ pip-delete-this-directory.txt
 .claude/
 docs/
 scripts/
+tests/
 
 # ==================== Virtual environment ====================
 .venv/

@@ -1,8 +1,30 @@
+import enum
 from sqlalchemy import Column, Integer, String, Enum, ForeignKey, BigInteger, Text, Boolean, UniqueConstraint, Index
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import text
 from sqlalchemy.sql.sqltypes import TIMESTAMP
 from app.core.database import Base
+
+
+class KnowledgeSource(str, enum.Enum):
+    PUBLIC = "public"
+    ORG = "org"
+    PERSONAL = "personal"
+
+
+class KBStatus(str, enum.Enum):
+    ACTIVE = "active"
+    PROVISIONING = "provisioning"
+    ARCHIVED = "archived"
+    FAILED = "failed"
+
+
+class ParserStatus(str, enum.Enum):
+    WAITING = "waiting"
+    PARSING = "parsing"
+    EMBEDDING = "embedding"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
 
 class KnowledgeBase(Base):
@@ -17,14 +39,15 @@ class KnowledgeBase(Base):
     id = Column(BigInteger, primary_key=True, autoincrement=True, comment="知识库唯一ID")
     name = Column(String(100), nullable=False, comment="知识库名称")
     description = Column(Text, nullable=True, comment="知识库描述")
-    scope = Column(String(20), nullable=False, comment="可见范围: public-公开, org-组织内, personal-个人")
+    scope = Column(Enum(KnowledgeSource), nullable=False, comment="可见范围: public-公开, org-组织内, personal-个人")
     owner_id = Column(BigInteger, ForeignKey("users.id"), nullable=False, comment="创建者用户ID")
     org_id = Column(BigInteger, ForeignKey("organization.id"), nullable=True, comment="所属组织ID, 个人知识库为空")
-    embedding_model = Column(String(100), nullable=True, comment="向量化模型名称, 如 text-embedding-3-small")
-    vector_store = Column(String(100), nullable=True, comment="向量存储类型, 如 chroma/pgvector")
     document_count = Column(Integer, default=0, comment="文档总数统计")
     chunk_count = Column(Integer, default=0, comment="分块总数统计")
-    status = Column(String(20), default="ready", comment="状态: building-构建中, ready-就绪, failed-构建失败")
+    chunk_size = Column(Integer, default=500, comment="分块大小")
+    chunk_overlap = Column(Integer, default=50, comment="分块重叠长度")
+    status = Column(Enum(KBStatus), default=KBStatus.PROVISIONING,
+                    comment="状态:active:正常使用,processing:正在初始化,archived:归档,failed:异常")
     created_at = Column(TIMESTAMP(timezone=True), server_default=text('now()'), comment="创建时间")
     updated_at = Column(TIMESTAMP(timezone=True), server_default=text('now()'), onupdate=text('now()'),
                         comment="更新时间")
@@ -54,12 +77,16 @@ class Document(Base):
     file_type = Column(String(20), nullable=False, comment="pdf/docx/md/txt/html")
     mime_type = Column(String(100), nullable=True, comment="application/pdf")
     file_size = Column(BigInteger, nullable=False, comment="文件大小(Byte)")
-    storage_path = Column(String(500), nullable=False, comment="服务器存储路径")
-    parser_status = Column(String(20), default="waiting", comment="waiting/parsing/embedding/completed/failed")
+    file_hash = Column(String(64), nullable=True, comment="文件Hash", index=True)
+    page_count = Column(Integer, nullable=True, comment="文档页数")
+    storage_key = Column(String(500), nullable=False, comment="服务器存储路径")
+    parser_status = Column(Enum(ParserStatus), default="waiting", comment="waiting/parsing/embedding/completed/failed")
     chunk_count = Column(Integer, default=0, comment="切块数量")
+    parse_duration = Column(Integer, default=0, comment="解析耗时(秒)")
     remark = Column(String(500), nullable=True, comment="失败原因或备注")
     created_at = Column(TIMESTAMP(timezone=True), server_default=text('now()'), comment="创建时间")
-    updated_at = Column(TIMESTAMP(timezone=True), server_default=text('now()'), onupdate=text('now()'),comment="更新时间")
+    updated_at = Column(TIMESTAMP(timezone=True), server_default=text('now()'), onupdate=text('now()'),
+                        comment="更新时间")
     deleted = Column(Boolean, default=False, comment="逻辑删除")
 
     # 关系
@@ -67,21 +94,22 @@ class Document(Base):
     uploader = relationship("User", back_populates="documents", lazy="selectin")
     chunks = relationship("Chunk", back_populates="document", cascade="all, delete-orphan")
 
-    class Chunk(Base):
-        __tablename__ = "chunk"
-        __table_args__ = (
-            Index("idx_document", "document_id"),
-            {"comment": "文档分块表"}
-        )
 
-        id = Column(BigInteger, primary_key=True, autoincrement=True, comment="分块唯一ID")
-        document_id = Column(BigInteger, ForeignKey("document.id", ondelete="CASCADE"), nullable=False,
-                             comment="所属文档ID")
-        chunk_index = Column(Integer, nullable=True, comment="分块序号(从0开始)")
-        content = Column(Text, nullable=True, comment="分块文本内容")  # LONGTEXT 对应 Text
-        token_count = Column(Integer, default=0, comment="Token数量估算")
-        vector_id = Column(String(255), nullable=True, comment="向量数据库中的向量ID")
-        created_at = Column(TIMESTAMP(timezone=True), server_default=text('now()'), comment="创建时间")
+class Chunk(Base):
+    __tablename__ = "chunk"
+    __table_args__ = (
+        Index("idx_document", "document_id"),
+        {"comment": "文档分块表"}
+    )
 
-        # 关系
-        document = relationship("Document", back_populates="chunks")
+    id = Column(BigInteger, primary_key=True, autoincrement=True, comment="分块唯一ID")
+    document_id = Column(BigInteger, ForeignKey("document.id", ondelete="CASCADE"), nullable=False,
+                         comment="所属文档ID")
+    chunk_index = Column(Integer, comment="分块序号(从0开始)")
+    content = Column(Text, nullable=True, comment="分块文本内容")  # LONGTEXT 对应 Text
+    token_count = Column(Integer, default=0, comment="Token数量估算")
+    vector_id = Column(String(255), nullable=True, comment="向量数据库中的向量ID")
+    created_at = Column(TIMESTAMP(timezone=True), server_default=text('now()'), comment="创建时间")
+
+    # 关系
+    document = relationship("Document", back_populates="chunks")

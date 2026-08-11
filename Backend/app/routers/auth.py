@@ -14,6 +14,6 @@ async def login(user_credentials: OAuth2PasswordRequestForm = Depends(), db: Asy
     return {"access_token": await repo.login(user_credentials), "token_type": "bearer"}
 
 @router.get("/admin/requests")
-async def list_all_requests(user=Depends(core.oauth2.require_admin),db:AsyncSession=Depends(get_db)):
+async def list_all_requests(user=Depends(core.permissions.require_admin),db:AsyncSession=Depends(get_db)):
     repo =repositories.request.RequestRepository(db)
     return await repo.get_all()

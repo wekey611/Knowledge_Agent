@@ -1,2 +1,1 @@
-from . import user,request,organization
-
+from . import user, request, organization, knowledgebase

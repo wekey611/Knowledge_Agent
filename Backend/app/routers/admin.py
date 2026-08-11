@@ -12,7 +12,7 @@ router = APIRouter(
 async def approve_request(
         background_tasks: BackgroundTasks,
         request_id=Path(...),
-        user=Depends(core.oauth2.require_admin),
+        user=Depends(core.permissions.require_admin),
         db: AsyncSession = Depends(get_db)
 ):
     repo = repositories.request.RequestRepository(db)

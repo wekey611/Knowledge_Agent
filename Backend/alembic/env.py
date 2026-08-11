@@ -9,7 +9,7 @@ from alembic import context
 from app import settings
 from app.core import  database
 
-database_url = settings.DB_URI
+database_url = settings.TEST_DATABASE_URL
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

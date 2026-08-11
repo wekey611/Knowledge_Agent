@@ -4,6 +4,7 @@ load_dotenv()
 
 # 数据库
 DB_URI = os.environ["DB_URI"]
+TEST_DATABASE_URL = os.environ["TEST_DATABASE_URL"]
 
 # oauth2
 SECRET_KEY = "496263e899ac2881a1565aa368c546ad4a35a548cc921811156396d3155b5873"
@@ -22,3 +23,6 @@ MAIL_SERVER = os.environ.get("MAIL_SERVER", "smtp.qq.com")
 MAIL_FROM_NAME = os.environ.get("MAIL_FROM_NAME", "AI-Name")
 MAIL_STARTTLS = os.environ.get("MAIL_STARTTLS", "False").lower() == "true"
 MAIL_SSL_TLS = os.environ.get("MAIL_SSL_TLS", "True").lower() == "true"
+
+# 个人知识库数量限制
+PERSONAL_KB_LIMIT = 5

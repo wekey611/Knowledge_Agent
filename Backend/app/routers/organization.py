@@ -8,7 +8,7 @@ router = APIRouter(
 )
 
 
-@router.post("", status_code=status.HTTP_200_OK, response_model=schemas.organization.OrganizationOut)
+@router.post("", status_code=status.HTTP_201_CREATED, response_model=schemas.organization.OrganizationOut)
 async def create_org(
         organization: schemas.organization.OrganizationCreate,
         user=Depends(core.oauth2.get_current_user),
@@ -30,7 +30,7 @@ async def get_my_org(
 @router.get("/{org_id}", status_code=status.HTTP_200_OK, response_model=schemas.organization.OrganizationDetail)
 async def get_org(
         org_id=Path(...),
-        user=Depends(core.oauth2.require_org_member),
+        user=Depends(core.permissions.require_org_member),
         db: AsyncSession = Depends(get_db)
 ):
     repo = repositories.organization.OrganizationRepository(db)
@@ -41,7 +41,7 @@ async def get_org(
 async def revise_org(
         organization_data: schemas.organization.OrganizationUpdate,
         org_id=Path(...),
-        user=Depends(core.oauth2.require_org_admin),
+        user=Depends(core.permissions.require_org_admin),
         db: AsyncSession = Depends(get_db)
 ):
     repo = repositories.organization.OrganizationRepository(db)
@@ -51,7 +51,7 @@ async def revise_org(
 @router.delete("/{org_id}", status_code=status.HTTP_200_OK)
 async def delete_org(
         org_id=Path(...),
-        user=Depends(core.oauth2.require_org_admin),
+        user=Depends(core.permissions.require_org_admin),
         db: AsyncSession = Depends(get_db)
 ):
     repo = repositories.organization.OrganizationRepository(db)
@@ -63,7 +63,7 @@ async def delete_org(
             response_model=list[schemas.organization.OrganizationMemberOut])
 async def get_members(
         org_id: int = Path(...),
-        user: models.user.User = Depends(core.oauth2.require_org_member),
+        user: models.user.User = Depends(core.permissions.require_org_member),
         db: AsyncSession = Depends(get_db)
 ):
     repo = repositories.organization.OrganizationRepository(db)
@@ -77,7 +77,7 @@ async def get_members(
 async def add_member(
         org_id: int = Path(...),
         member_data: schemas.organization.OrganizationMemberCreate = Depends(),
-        _: models.user.User = Depends(core.oauth2.require_org_admin),
+        _: models.user.User = Depends(core.permissions.require_org_admin),
         db: AsyncSession = Depends(get_db)
 ):
     repo = repositories.organization.OrganizationRepository(db)
@@ -90,7 +90,7 @@ async def revise_member(
         member_data: schemas.organization.OrganizationMemberUpdate,
         org_id: int = Path(...),
         user_id: int = Path(...),
-        _: models.user.User = Depends(core.oauth2.require_org_owner),
+        _: models.user.User = Depends(core.permissions.require_org_owner),
         db: AsyncSession = Depends(get_db)
 ):
     repo = repositories.organization.OrganizationRepository(db)
@@ -100,7 +100,7 @@ async def revise_member(
 @router.delete("/{org_id}/members/me")
 async def quit_org(
         org_id: int = Path(...),
-        user: models.user.User = Depends(core.oauth2.require_org_member),
+        user: models.user.User = Depends(core.permissions.require_org_member),
         db: AsyncSession = Depends(get_db)
 ):
     repo = repositories.organization.OrganizationRepository(db)
@@ -111,7 +111,7 @@ async def quit_org(
 async def remove_member(
         org_id: int = Path(...),
         user_id: int = Path(...),
-        _: models.user.User = Depends(core.oauth2.require_org_admin),
+        _: models.user.User = Depends(core.permissions.require_org_admin),
         db: AsyncSession = Depends(get_db)
 ):
     repo = repositories.organization.OrganizationRepository(db)
