@@ -34,6 +34,7 @@ class KnowledgeBaseSimple(BaseModel):
     document_count: int
     created_at: datetime
 
+
 class KnowledgeBaseDetail(KnowledgeBase):
     id: int
     document_count: int
@@ -43,6 +44,7 @@ class KnowledgeBaseDetail(KnowledgeBase):
     status: models.knowledge.KBStatus
     created_at: datetime
     updated_at: datetime
+
 
 class KnowledgeBaseList(BaseModel):
     total: int

@@ -8,6 +8,7 @@ router = APIRouter(
 )
 
 
+# 创建知识库
 @router.post("", status_code=status.HTTP_201_CREATED, response_model=schemas.knowledgebase.KnowledgeBaseDetail)
 async def create_knowledge_base(
         data: schemas.knowledgebase.KnowledgeBaseCreate,
@@ -15,4 +16,14 @@ async def create_knowledge_base(
         db: AsyncSession = Depends(get_db)
 ):
     service = services.knowledgebase.KnowledgeBaseService(db)
-    return await service.create(current_user=current_user, data=data )
+    return await service.create(current_user=current_user, data=data)
+
+
+# 查看知识库列表
+@router.get("", response_model=schemas.knowledgebase.KnowledgeBaseList)
+async def get_knowledge_base(
+        current_user: models.user.User = Depends(core.oauth2.get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    service=services.knowledgebase.KnowledgeBaseService(db)
+    return await service.get_bases(current_user=current_user)

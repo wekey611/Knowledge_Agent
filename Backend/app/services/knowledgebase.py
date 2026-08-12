@@ -21,7 +21,7 @@ class KnowledgeBaseService:
         elif scope == models.knowledge.KnowledgeSource.ORG:
             if data.org_id is None:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="创建组织知识库必须指定组织")
-            await core.permissions.check_org_admin(data.org_id, current_user,self.repo.db)
+            await core.permissions.check_org_admin(data.org_id, current_user, self.repo.db)
 
         elif scope == models.knowledge.KnowledgeSource.PERSONAL:
             if data.org_id is not None:
@@ -39,7 +39,8 @@ class KnowledgeBaseService:
 
         # 检测分块大小和重叠
         if data.chunk_size < 100 or data.chunk_overlap < 0:
-            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="分块大小必须大于100，重叠必须大于0")
+            raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                                detail="分块大小必须大于100，重叠必须大于0")
 
         if data.chunk_size < data.chunk_overlap:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="分块大小必须大于重叠")
@@ -57,3 +58,14 @@ class KnowledgeBaseService:
         # 提交给repo
         kb = await self.repo.create(owner_id=current_user.id, data=data)
         return kb
+
+    # 获取个人知识库列表
+    async def get_bases(self, current_user):
+        bases = await self.repo.get_bases(
+            user_id=current_user.id
+        )
+
+        return {
+            "total": len(bases),
+            "data": bases,
+        }
