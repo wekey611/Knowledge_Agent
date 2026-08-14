@@ -16,7 +16,7 @@
     <div v-else class="doc-page">
       <div class="doc-page-header">
         <h2 class="doc-page-title">{{ knowledgeBase.name }} - 文档</h2>
-        <p class="doc-page-desc">共 {{ knowledgeBase.documentCount }} 个文档</p>
+        <p class="doc-page-desc">共 {{ knowledgeBase.document_count }} 个文档</p>
       </div>
 
       <EmptyState

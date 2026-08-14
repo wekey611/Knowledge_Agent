@@ -21,16 +21,30 @@ class OrganizationRepository:
         await self.db.commit()
         await self.db.refresh(new_org)
 
+        # 提前保存 id（第二次 commit 会使 new_org 过期，之后不能再访问其属性）
+        org_id = new_org.id
+
         new_member = models.auth.OrganizationMember(
             user_id=owner_id,
-            org_id=new_org.id,
+            org_id=org_id,
             role=models.auth.OrganizationRole.OWNER,
         )
         self.db.add(new_member)
         await self.db.commit()
         await self.db.refresh(new_member)
 
-        return new_org
+        # 重新查询组织返回，避免 commit 过期后响应序列化触发懒加载（MissingGreenlet）
+        stmt = (
+            select(models.auth.Organization)
+            .where(models.auth.Organization.id == org_id)
+            .options(
+                selectinload(models.auth.Organization.owner),
+                selectinload(models.auth.Organization.members)
+                .selectinload(models.auth.OrganizationMember.user)
+            )
+        )
+        result = await self.db.execute(stmt)
+        return result.scalar_one()
 
     async def get_my_org(self, user):
         """获取我的组织"""
@@ -85,7 +99,8 @@ class OrganizationRepository:
             return False
 
         if org.owner_id != user.id:
-            raise PermissionError("Only the organization owner can delete it")
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                detail="Only the organization owner can delete it")
 
         await self.db.execute(
             delete(models.auth.OrganizationMember).where(models.auth.OrganizationMember.org_id == org_id)

@@ -37,6 +37,7 @@ export interface InviteTokenInfo {
 
 export interface UserRegisterInput {
   token: string
+  username: string
   password: string
 }
 

@@ -4,7 +4,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { ChatMessage } from '@/types/knowledge'
-import { fetchMessages, sendMessage } from '@/api/knowledge'
+import { fetchMessages, sendMessage } from '@/api/chatMock'
 
 export const useChatStore = defineStore('chat', () => {
   const messagesByKb = ref<Record<number, ChatMessage[]>>({})

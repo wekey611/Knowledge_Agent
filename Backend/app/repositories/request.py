@@ -68,7 +68,8 @@ class RequestRepository:
 
         await self.db.commit()
 
-        register_url = f"{settings.url}/register?token={new_token}"
+        # 邀请链接指向前端注册页（hash 路由）
+        register_url = f"{settings.FRONTEND_URL}/#/auth/register?token={new_token}"
         print(register_url)
 
         return {

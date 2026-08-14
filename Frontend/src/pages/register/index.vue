@@ -31,6 +31,19 @@
         class="register-form"
         @keyup.enter="handleRegister"
       >
+        <el-form-item prop="username">
+          <template #label>
+            <span class="form-label">用户名</span>
+          </template>
+          <el-input
+            v-model="form.username"
+            placeholder="设置用户名"
+            maxlength="100"
+            show-word-limit
+            :prefix-icon="User"
+          />
+        </el-form-item>
+
         <el-form-item prop="password">
           <template #label>
             <span class="form-label">设置密码</span>
@@ -86,7 +99,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Message, Lock } from '@element-plus/icons-vue'
+import { Message, Lock, User } from '@element-plus/icons-vue'
 import type { FormInstance, FormRules } from 'element-plus'
 import type { InviteTokenInfo } from '@/types/api'
 import { getInviteInfo, completeRegister } from '@/api/user'
@@ -103,11 +116,16 @@ const registered = ref(false)
 const registeredEmail = ref('')
 
 const form = reactive({
+  username: '',
   password: '',
   confirmPassword: '',
 })
 
 const rules: FormRules = {
+  username: [
+    { required: true, message: '请设置用户名', trigger: 'blur' },
+    { max: 100, message: '用户名不能超过 100 个字符', trigger: 'blur' },
+  ],
   password: [
     { required: true, message: '请设置密码', trigger: 'blur' },
     { min: 6, message: '密码至少 6 位', trigger: 'blur' },
@@ -171,7 +189,7 @@ async function handleRegister() {
 
   submitting.value = true
   try {
-    const res = await completeRegister({ token, password: form.password })
+    const res = await completeRegister({ token, username: form.username, password: form.password })
     registered.value = true
     registeredEmail.value = res.email
     ElMessage.success('注册成功')

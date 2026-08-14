@@ -65,10 +65,10 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import type { KnowledgeBase, Document, ChatMessage } from '@/types/knowledge'
+import type { KnowledgeBaseSimple, Document, ChatMessage } from '@/types/knowledge'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useChatStore } from '@/stores/chat'
-import { fetchDocuments } from '@/api/knowledge'
+import { fetchDocuments } from '@/api/chatMock'
 import KnowledgeSidebar from '@/components/knowledge/KnowledgeSidebar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 
@@ -82,7 +82,7 @@ const docsLoading = ref(false)
 const documents = ref<Document[]>([])
 const activeDocId = ref<number | null>(null)
 
-const knowledgeBase = computed<KnowledgeBase | null>(() => {
+const knowledgeBase = computed<KnowledgeBaseSimple | null>(() => {
   return knowledgeStore.getKnowledgeBase(kbId.value) || null
 })
 

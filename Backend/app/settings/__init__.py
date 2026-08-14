@@ -11,8 +11,8 @@ SECRET_KEY = "496263e899ac2881a1565aa368c546ad4a35a548cc921811156396d3155b5873"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30 # 超过多少分钟重新验证
 
-# ip
-url = "http://127.0.0.1:8000"
+# 前端地址（注册/邀请链接发往的页面，生产环境可用环境变量覆盖）
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "http://localhost:5173")
 
 # 邮箱相关配置
 MAIL_USERNAME = os.environ["MAIL_USERNAME"]

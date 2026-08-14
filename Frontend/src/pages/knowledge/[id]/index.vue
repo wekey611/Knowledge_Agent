@@ -24,7 +24,7 @@
         <div class="chat-header-left">
           <h2 class="chat-kb-name">{{ knowledgeBase.name }}</h2>
           <el-tag size="small" type="info" class="chat-kb-badge">
-            {{ knowledgeBase.documentCount }} 文档
+            {{ knowledgeBase.document_count }} 文档
           </el-tag>
         </div>
         <el-button

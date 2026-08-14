@@ -41,7 +41,7 @@
         class="nav-item kb-item"
         :class="{ active: route.path.startsWith(`/knowledge/${kb.id}`), collapsed: isCollapsed }"
       >
-        <div class="kb-dot" :style="{ background: kb.color || 'var(--color-primary)' }" />
+        <div class="kb-dot" :style="{ background: kbColor(kb) }" />
         <span v-show="!isCollapsed" class="nav-label">{{ kb.name }}</span>
       </router-link>
     </div>
@@ -65,10 +65,11 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { HomeFilled, List, SwitchButton } from '@element-plus/icons-vue'
+import { HomeFilled, List, OfficeBuilding, SwitchButton } from '@element-plus/icons-vue'
 import { useAuthStore } from '@/stores/auth'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useThemeStore } from '@/stores/theme'
+import { SCOPE_COLORS, type KnowledgeBaseSimple } from '@/types/knowledge'
 import AppLogo from '@/components/common/AppLogo.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 
@@ -95,12 +96,17 @@ function toggleCollapse() {
 const navItems = computed(() => {
   const items = [
     { path: '/dashboard', label: '首页', icon: HomeFilled },
+    { path: '/organizations', label: '组织', icon: OfficeBuilding },
   ]
   if (authStore.isAdmin) {
     items.push({ path: '/admin/requests', label: '申请管理', icon: List })
   }
   return items
 })
+
+function kbColor(kb: KnowledgeBaseSimple): string {
+  return SCOPE_COLORS[kb.scope] || 'var(--color-primary)'
+}
 
 function handleLogout() {
   authStore.logout()

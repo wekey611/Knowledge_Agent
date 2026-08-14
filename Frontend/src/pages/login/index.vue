@@ -93,7 +93,9 @@ async function handleLogin() {
 
     // Parse JWT payload to get user info
     try {
-      const payload = JSON.parse(atob(tokenRes.access_token.split('.')[1]))
+      // JWT payload 是 base64url 编码（含 - _ 字符），需先转换再 atob
+      const base64 = tokenRes.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')
+      const payload = JSON.parse(atob(base64))
       const userId = payload.user_id
       const role = payload.role || 'user'
 

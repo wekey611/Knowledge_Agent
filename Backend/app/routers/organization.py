@@ -85,7 +85,7 @@ async def add_member(
 
 
 # 修改角色
-@router.patch("{org_id}/members/{user_id}")
+@router.patch("/{org_id}/members/{user_id}")
 async def revise_member(
         member_data: schemas.organization.OrganizationMemberUpdate,
         org_id: int = Path(...),

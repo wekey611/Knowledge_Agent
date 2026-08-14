@@ -16,23 +16,54 @@
 
     <!-- Normal card -->
     <template v-else>
-      <div class="card-color-bar" :style="{ background: kb.color || 'var(--color-primary)' }" />
+      <div class="card-color-bar" :style="{ background: cardColor }" />
       <div class="card-content">
         <div class="card-header">
           <h3 class="card-title">{{ kb.name }}</h3>
-          <el-tag size="small" type="info" class="doc-count">{{ kb.documentCount }} 文档</el-tag>
+          <el-tag size="small" type="info" class="doc-count">{{ kb.document_count }} 文档</el-tag>
         </div>
-        <p class="card-desc">{{ kb.description }}</p>
+
+        <div class="card-badges">
+          <el-tag size="small" :color="scopeTagColor" class="scope-tag" effect="dark">
+            {{ SCOPE_LABELS[kb.scope] }}
+          </el-tag>
+          <el-tag
+            v-if="kb.status !== 'active'"
+            size="small"
+            :type="kb.status === 'failed' ? 'danger' : 'warning'"
+          >
+            {{ KB_STATUS_LABELS[kb.status] }}
+          </el-tag>
+        </div>
+
+        <p class="card-desc">{{ kb.description || '暂无描述' }}</p>
         <div class="card-footer">
-          <span class="card-date">更新于 {{ formatDate(kb.updatedAt) }}</span>
-          <div class="card-actions">
+          <span class="card-date">创建于 {{ formatDate(kb.created_at) }}</span>
+          <div class="card-actions" @click.stop>
+            <el-tooltip content="编辑">
+              <el-button
+                size="small"
+                :icon="Edit"
+                circle
+                @click="$emit('edit')"
+              />
+            </el-tooltip>
+            <el-tooltip content="删除">
+              <el-button
+                size="small"
+                type="danger"
+                :icon="Delete"
+                circle
+                @click="$emit('delete')"
+              />
+            </el-tooltip>
             <el-tooltip content="进入问答">
               <el-button
                 size="small"
                 type="primary"
                 :icon="ChatDotSquare"
                 circle
-                @click.stop="$emit('chat')"
+                @click="$emit('chat')"
               />
             </el-tooltip>
             <el-tooltip content="浏览文档">
@@ -40,7 +71,7 @@
                 size="small"
                 :icon="Document"
                 circle
-                @click.stop="$emit('browse')"
+                @click="$emit('browse')"
               />
             </el-tooltip>
           </div>
@@ -51,19 +82,31 @@
 </template>
 
 <script setup lang="ts">
-import { ChatDotSquare, Document } from '@element-plus/icons-vue'
-import type { KnowledgeBase } from '@/types/knowledge'
+import { computed } from 'vue'
+import { ChatDotSquare, Delete, Document, Edit } from '@element-plus/icons-vue'
+import {
+  KB_STATUS_LABELS,
+  SCOPE_COLORS,
+  SCOPE_LABELS,
+  type KnowledgeBaseSimple,
+} from '@/types/knowledge'
 
-defineProps<{
-  kb: KnowledgeBase
+const props = defineProps<{
+  kb: KnowledgeBaseSimple
   loading?: boolean
 }>()
 
 defineEmits<{
   click: []
+  edit: []
+  delete: []
   chat: []
   browse: []
 }>()
+
+const cardColor = computed(() => SCOPE_COLORS[props.kb.scope])
+
+const scopeTagColor = computed(() => SCOPE_COLORS[props.kb.scope])
 
 function formatDate(dateStr: string): string {
   try {
@@ -143,6 +186,17 @@ function formatDate(dateStr: string): string {
   flex-shrink: 0;
 }
 
+.card-badges {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.scope-tag {
+  border: none;
+  font-weight: 500;
+}
+
 .card-desc {
   font-size: var(--text-sm);
   color: var(--color-muted-foreground);
@@ -152,12 +206,14 @@ function formatDate(dateStr: string): string {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  min-height: calc(1.6em * 2);
 }
 
 .card-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--space-3);
 }
 
 .card-date {

@@ -31,8 +31,10 @@ class UserRepository:
         if not core.security.verify_password(user_credentials.password, user.password):
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid Credentials")
 
-        # create token
-        access_token = await core.oauth2.create_access_token(data={"user_id": user.id})
+        # create token（携带角色，供前端识别管理员身份）
+        access_token = await core.oauth2.create_access_token(
+            data={"user_id": user.id, "role": user.role.value}
+        )
 
         return access_token
 

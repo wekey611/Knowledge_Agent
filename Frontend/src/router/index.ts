@@ -50,6 +50,22 @@ const routes: RouteRecordRaw[] = [
         meta: { requiresAuth: true, requiresAdmin: true },
       },
       {
+        path: 'organizations',
+        meta: { requiresAuth: true },
+        children: [
+          {
+            path: '',
+            name: 'Organizations',
+            component: () => import('@/pages/organizations/index.vue'),
+          },
+          {
+            path: ':id',
+            name: 'OrganizationDetail',
+            component: () => import('@/pages/organizations/[id].vue'),
+          },
+        ],
+      },
+      {
         path: 'knowledge',
         meta: { requiresAuth: true },
         redirect: '/dashboard',

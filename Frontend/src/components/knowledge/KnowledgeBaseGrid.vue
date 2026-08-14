@@ -5,7 +5,7 @@
       <KnowledgeBaseCard
         v-for="i in 6"
         :key="`skeleton-${i}`"
-        :kb="{ id: i, name: '', description: '', documentCount: 0, createdAt: '', updatedAt: '' }"
+        :kb="{ id: i, name: '', description: '', document_count: 0, created_at: '', scope: 'personal', status: 'active' }"
         loading
       />
     </div>
@@ -37,18 +37,20 @@
         @click="$emit('select', kb.id)"
         @chat="$emit('chat', kb.id)"
         @browse="$emit('browse', kb.id)"
+        @edit="$emit('edit', kb.id)"
+        @delete="$emit('delete', kb.id)"
       />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import type { KnowledgeBase } from '@/types/knowledge'
+import type { KnowledgeBaseSimple } from '@/types/knowledge'
 import KnowledgeBaseCard from './KnowledgeBaseCard.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 
 defineProps<{
-  knowledgeBases: KnowledgeBase[]
+  knowledgeBases: KnowledgeBaseSimple[]
   loading: boolean
   error: string | null
 }>()
@@ -57,6 +59,8 @@ defineEmits<{
   select: [id: number]
   chat: [id: number]
   browse: [id: number]
+  edit: [id: number]
+  delete: [id: number]
   retry: []
 }>()
 </script>

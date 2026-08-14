@@ -10,7 +10,7 @@
       </button>
       <div class="ks-title-group">
         <h3 class="ks-title">{{ knowledgeBase?.name || '知识库' }}</h3>
-        <span v-if="knowledgeBase" class="ks-doc-count">{{ knowledgeBase.documentCount }} 文档</span>
+        <span v-if="knowledgeBase" class="ks-doc-count">{{ knowledgeBase.document_count }} 文档</span>
       </div>
     </div>
 
@@ -76,11 +76,11 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { KnowledgeBase, Document } from '@/types/knowledge'
+import type { KnowledgeBaseSimple, Document } from '@/types/knowledge'
 import EmptyState from '@/components/common/EmptyState.vue'
 
 const props = defineProps<{
-  knowledgeBase: KnowledgeBase | null
+  knowledgeBase: KnowledgeBaseSimple | null
   documents: Document[]
   loading: boolean
   activeDocId?: number | null

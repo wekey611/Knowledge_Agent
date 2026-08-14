@@ -27,7 +27,7 @@ async def check_org_admin(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="没有组织管理员权限"
         )
-    return member
+    return current_user
 
 
 async def require_org_admin(
@@ -49,7 +49,7 @@ async def check_org_member(org_id: int, current_user=Depends(get_current_user), 
     member = result.scalar_one_or_none()
     if member is None:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="没有组织成员权限")
-    return member
+    return current_user
 
 
 async def require_org_member(org_id: int, current_user=Depends(get_current_user), db: AsyncSession = Depends(get_db)):

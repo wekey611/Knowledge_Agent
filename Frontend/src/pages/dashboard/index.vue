@@ -9,7 +9,7 @@
         <p class="welcome-desc">
           你有 <strong>{{ knowledgeStore.kbCount }}</strong> 个知识库
           <template v-if="knowledgeStore.kbCount > 0">
-            ，上次活跃于 {{ lastActive }}
+            ，最近创建于 {{ lastActive }}
           </template>
         </p>
       </div>
@@ -31,8 +31,8 @@
         <div class="stat-label">文档</div>
       </div>
       <div class="stat-card">
-        <div class="stat-value">{{ totalConversations }}</div>
-        <div class="stat-label">对话</div>
+        <div class="stat-value">{{ totalOrganizations }}</div>
+        <div class="stat-label">组织</div>
       </div>
     </section>
 
@@ -40,6 +40,9 @@
     <section class="kb-section">
       <div class="section-header">
         <h2 class="section-title">我的知识库</h2>
+        <el-button type="primary" :icon="Plus" @click="openCreateDialog">
+          新建知识库
+        </el-button>
       </div>
       <KnowledgeBaseGrid
         :knowledge-bases="knowledgeStore.knowledgeBases"
@@ -48,6 +51,8 @@
         @select="goToKnowledgeBase"
         @chat="goToKnowledgeBase"
         @browse="goToDocuments"
+        @edit="openEditDialog"
+        @delete="handleDelete"
         @retry="knowledgeStore.loadKnowledgeBases()"
       />
     </section>
@@ -72,30 +77,50 @@
         </div>
       </el-card>
     </section>
+
+    <!-- Create / Edit dialog -->
+    <KnowledgeBaseFormDialog
+      v-model="dialogVisible"
+      :kb="editingKb"
+      :organizations="organizations"
+      :is-admin="authStore.isAdmin"
+      :submitting="submitting"
+      @submit="handleFormSubmit"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { List } from '@element-plus/icons-vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { List, Plus } from '@element-plus/icons-vue'
+import type { KnowledgeBaseSimple } from '@/types/knowledge'
 import { useAuthStore } from '@/stores/auth'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import KnowledgeBaseGrid from '@/components/knowledge/KnowledgeBaseGrid.vue'
+import KnowledgeBaseFormDialog from '@/components/knowledge/KnowledgeBaseFormDialog.vue'
+import { fetchOrganizations } from '@/api/organization'
+import type { OrganizationOut } from '@/types/knowledge'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const knowledgeStore = useKnowledgeStore()
 
+const organizations = ref<OrganizationOut[]>([])
+const dialogVisible = ref(false)
+const editingKb = ref<KnowledgeBaseSimple | null>(null)
+const submitting = ref(false)
+
 const totalDocuments = computed(() =>
-  knowledgeStore.knowledgeBases.reduce((sum, kb) => sum + kb.documentCount, 0)
+  knowledgeStore.knowledgeBases.reduce((sum, kb) => sum + kb.document_count, 0)
 )
 
-const totalConversations = 0
+const totalOrganizations = computed(() => organizations.value.length)
 
 const lastActive = computed(() => {
   if (knowledgeStore.knowledgeBases.length === 0) return ''
-  const dates = knowledgeStore.knowledgeBases.map((kb) => new Date(kb.updatedAt).getTime())
+  const dates = knowledgeStore.knowledgeBases.map((kb) => new Date(kb.created_at).getTime())
   const latest = new Date(Math.max(...dates))
   return latest.toLocaleDateString('zh-CN')
 })
@@ -108,8 +133,66 @@ function goToDocuments(id: number) {
   router.push(`/knowledge/${id}/documents`)
 }
 
+function openCreateDialog() {
+  editingKb.value = null
+  dialogVisible.value = true
+}
+
+function openEditDialog(id: number) {
+  const kb = knowledgeStore.getKnowledgeBase(id)
+  if (!kb) return
+  editingKb.value = kb
+  dialogVisible.value = true
+}
+
+async function handleDelete(id: number) {
+  const kb = knowledgeStore.getKnowledgeBase(id)
+  try {
+    await ElMessageBox.confirm(
+      `确定删除知识库「${kb?.name || id}」吗？删除后不可恢复。`,
+      '删除确认',
+      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
+    )
+  } catch {
+    return // 用户取消
+  }
+  try {
+    await knowledgeStore.remove(id)
+    ElMessage.success('知识库已删除')
+  } catch {
+    // http 拦截器已提示错误信息
+  }
+}
+
+async function handleFormSubmit(payload: { id?: number; data: any }) {
+  submitting.value = true
+  try {
+    if (payload.id !== undefined) {
+      await knowledgeStore.update(payload.id, payload.data)
+      ElMessage.success('知识库已更新')
+    } else {
+      await knowledgeStore.create(payload.data)
+      ElMessage.success('知识库创建成功')
+    }
+    dialogVisible.value = false
+  } catch {
+    // http 拦截器已提示错误信息
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function loadOrganizations() {
+  try {
+    organizations.value = await fetchOrganizations()
+  } catch {
+    organizations.value = []
+  }
+}
+
 onMounted(() => {
   knowledgeStore.loadKnowledgeBases()
+  loadOrganizations()
 })
 </script>
 
