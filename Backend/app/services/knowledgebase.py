@@ -69,3 +69,51 @@ class KnowledgeBaseService:
             "total": len(bases),
             "data": bases,
         }
+
+    # 获取知识库详情
+    async def get_base(self, current_user, id):
+        kb = await self.repo.get_base(id=id)
+
+        # 检测是否有这个知识库
+        if kb is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="知识库不存在")
+
+        # 检测知识库是否属于当前用户
+        if kb.scope == models.knowledge.KnowledgeSource.PUBLIC:
+            pass
+        elif kb.scope == models.knowledge.KnowledgeSource.ORG:
+            await core.permissions.check_org_member(kb.org_id, current_user, self.repo.db)
+        elif kb.scope == models.knowledge.KnowledgeSource.PERSONAL:
+            if kb.owner_id != current_user.id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限访问")
+
+        return kb
+
+    # 更新知识库
+    async def update(self, current_user, id, data: schemas.knowledgebase.KnowledgeBaseUpdate):
+        kb = await self.repo.get_base(id=id)
+        if kb is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="知识库不存在")
+        if kb.scope == models.knowledge.KnowledgeSource.PUBLIC:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限访问")
+        elif kb.scope == models.knowledge.KnowledgeSource.ORG:
+            await core.permissions.check_org_admin(kb.org_id, current_user, self.repo.db)
+        elif kb.scope == models.knowledge.KnowledgeSource.PERSONAL:
+            if kb.owner_id != current_user.id:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限访问")
+        return await self.repo.update(id=id, data=data)
+
+    # 删除知识库
+    async def delete(self, current_user, id):
+        kb = await self.repo.get_base(id=id)
+        if kb is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="知识库不存在")
+
+        if kb.scope == models.knowledge.KnowledgeSource.PUBLIC:
+            await core.permissions.require_admin(current_user)
+        # org 知识库仅创建者可删除；personal 仅本人
+        elif kb.owner_id != current_user.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="无权限访问")
+
+        await self.repo.delete(id=id)
+        return {"message": "知识库删除成功"}

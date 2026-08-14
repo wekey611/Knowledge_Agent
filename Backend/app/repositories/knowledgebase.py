@@ -1,4 +1,5 @@
 from fastapi import HTTPException
+from mako.testing.helpers import result_lines
 from sqlalchemy import select, delete, exists, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -34,6 +35,7 @@ class KnowledgeRepository:
         stmt = (
             select(models.knowledge.KnowledgeBase)
             .where(
+                models.knowledge.KnowledgeBase.deleted == False,
                 or_(
                     (models.knowledge.KnowledgeBase.scope == "personal")
                     & (models.knowledge.KnowledgeBase.owner_id == user_id),
@@ -52,28 +54,69 @@ class KnowledgeRepository:
         result = await self.db.execute(stmt)
         return result.scalars().all()
 
+    async def get_base(self, id):
+        stmt = select(models.knowledge.KnowledgeBase).where(
+            models.knowledge.KnowledgeBase.id == id,
+            models.knowledge.KnowledgeBase.deleted == False,
+        )
+        result = await self.db.execute(stmt)
+        return result.scalars().one_or_none()
 
-async def count_personal(self, owner_id):
-    stmt = select(models.knowledge.KnowledgeBase).where(
-        models.knowledge.KnowledgeBase.scope == models.knowledge.KnowledgeSource.PERSONAL,
-        models.knowledge.KnowledgeBase.owner_id == owner_id)
-    result = await self.db.execute(stmt)
-    count = len(result.scalars().all())
-    return count
+    async def count_personal(self, owner_id):
+        stmt = select(models.knowledge.KnowledgeBase).where(
+            models.knowledge.KnowledgeBase.scope == models.knowledge.KnowledgeSource.PERSONAL,
+            models.knowledge.KnowledgeBase.owner_id == owner_id,
+            models.knowledge.KnowledgeBase.deleted == False)
+        result = await self.db.execute(stmt)
+        count = len(result.scalars().all())
+        return count
 
+    async def exists_by_name(
+            self,
+            name: str,
+            scope: models.knowledge.KnowledgeSource,
+            owner_id: int,
+            org_id: int | None = None
+    ):
+        stmt = select(models.knowledge.KnowledgeBase).where(
+            models.knowledge.KnowledgeBase.name == name,
+            models.knowledge.KnowledgeBase.scope == scope,
+            models.knowledge.KnowledgeBase.owner_id == owner_id,
+            models.knowledge.KnowledgeBase.org_id == org_id,
+            models.knowledge.KnowledgeBase.deleted == False
+        )
+        result = await self.db.execute(stmt)
+        return result.scalars().one_or_none()
 
-async def exists_by_name(
-        self,
-        name: str,
-        scope: models.knowledge.KnowledgeSource,
-        owner_id: int,
-        org_id: int | None = None
-):
-    stmt = select(models.knowledge.KnowledgeBase).where(
-        models.knowledge.KnowledgeBase.name == name,
-        models.knowledge.KnowledgeBase.scope == scope,
-        models.knowledge.KnowledgeBase.owner_id == owner_id,
-        models.knowledge.KnowledgeBase.org_id == org_id
-    )
-    result = await self.db.execute(stmt)
-    return result.scalars().one_or_none()
+    # 更新知识库
+    async def update(self, id, data):
+        stmt = select(models.knowledge.KnowledgeBase).where(models.knowledge.KnowledgeBase.id == id)
+        result = await self.db.execute(stmt)
+        kb = result.scalars().one_or_none()
+        if kb:
+            kb.name = data.name
+            kb.description = data.description
+            if data.chunk_size:
+                kb.chunk_size = data.chunk_size
+            if data.chunk_overlap:
+                kb.chunk_overlap = data.chunk_overlap
+
+        await self.db.commit()
+        await self.db.refresh(kb)
+        return kb
+
+    # 删除知识库（软删除）
+    async def delete(self, id):
+        stmt = select(models.knowledge.KnowledgeBase).where(
+            models.knowledge.KnowledgeBase.id == id,
+            models.knowledge.KnowledgeBase.deleted == False,
+        )
+        result = await self.db.execute(stmt)
+        kb = result.scalars().one_or_none()
+        if kb is None:
+            return None
+
+        kb.deleted = True
+        await self.db.commit()
+        await self.db.refresh(kb)
+        return kb

@@ -18,7 +18,7 @@ class KnowledgeBaseCreate(KnowledgeBase):
     pass
 
 
-class KnowledgeBaseUpdate(KnowledgeBase):
+class KnowledgeBaseUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     chunk_size: int | None = None

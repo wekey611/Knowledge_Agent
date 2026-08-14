@@ -27,3 +27,34 @@ async def get_knowledge_base(
 ):
     service=services.knowledgebase.KnowledgeBaseService(db)
     return await service.get_bases(current_user=current_user)
+
+# 查看知识库列表
+@router.get("/{id}",response_model=schemas.knowledgebase.KnowledgeBaseDetail)
+async def get_knowledge_base_detail(
+        id: int = Path(..., gt=0),
+        current_user: models.user.User = Depends(core.oauth2.get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    service=services.knowledgebase.KnowledgeBaseService(db)
+    return await service.get_base(current_user=current_user,id=id)
+
+# 更新知识库
+@router.patch("/{id}", response_model=schemas.knowledgebase.KnowledgeBaseDetail)
+async def update_knowledge_base(
+        id: int = Path(..., gt=0),
+        data: schemas.knowledgebase.KnowledgeBaseUpdate = None,
+        current_user: models.user.User = Depends(core.oauth2.get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    service=services.knowledgebase.KnowledgeBaseService(db)
+    return await service.update(current_user=current_user,id=id,data=data)
+
+# 删除知识库
+@router.delete("/{id}", status_code=status.HTTP_200_OK)
+async def delete_knowledge_base(
+        id: int = Path(..., gt=0),
+        current_user: models.user.User = Depends(core.oauth2.get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    service=services.knowledgebase.KnowledgeBaseService(db)
+    return await service.delete(current_user=current_user,id=id)
