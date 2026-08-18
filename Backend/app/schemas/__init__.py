@@ -1,1 +1,1 @@
-from . import user, auth, organization,knowledgebase
+from . import user, auth, organization, knowledgebase, document

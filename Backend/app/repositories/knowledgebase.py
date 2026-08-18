@@ -27,6 +27,7 @@ class KnowledgeRepository:
         await self.db.refresh(kb)
         return kb
 
+    # 获取知识库列表
     async def get_bases(self, user_id):
         org_member_exists = exists().where(
             models.auth.OrganizationMember.org_id == models.knowledge.KnowledgeBase.org_id,
@@ -54,6 +55,7 @@ class KnowledgeRepository:
         result = await self.db.execute(stmt)
         return result.scalars().all()
 
+    # 获取知识库详情
     async def get_base(self, id):
         stmt = select(models.knowledge.KnowledgeBase).where(
             models.knowledge.KnowledgeBase.id == id,
@@ -62,6 +64,7 @@ class KnowledgeRepository:
         result = await self.db.execute(stmt)
         return result.scalars().one_or_none()
 
+    # 获取个人知识库数量
     async def count_personal(self, owner_id):
         stmt = select(models.knowledge.KnowledgeBase).where(
             models.knowledge.KnowledgeBase.scope == models.knowledge.KnowledgeSource.PERSONAL,
@@ -71,6 +74,7 @@ class KnowledgeRepository:
         count = len(result.scalars().all())
         return count
 
+    # 校验知识库名称是否已存在
     async def exists_by_name(
             self,
             name: str,
@@ -88,6 +92,7 @@ class KnowledgeRepository:
         result = await self.db.execute(stmt)
         return result.scalars().one_or_none()
 
+    # 更新知识库详情
     # 更新知识库
     async def update(self, id, data):
         stmt = select(models.knowledge.KnowledgeBase).where(models.knowledge.KnowledgeBase.id == id)

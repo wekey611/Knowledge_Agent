@@ -1,1 +1,1 @@
-from . import knowledgebase
+from . import knowledgebase, storage, document

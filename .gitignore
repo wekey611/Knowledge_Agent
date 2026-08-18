@@ -15,6 +15,7 @@ docs/
 scripts/
 tests/
 .hermes/
+storage/
 
 # ==================== Virtual environment ====================
 .venv/

@@ -29,17 +29,13 @@ async def say_hello(name: str):
     return {"message": f"Hello {name}"}
 
 
-@app.get("/register")
-async def register_page():
-    return FileResponse("app/static/register.html")
-
-
 app.include_router(routers.user.router)
 app.include_router(routers.auth.router)
 app.include_router(routers.admin.router)
 app.include_router(routers.organization.router)
 
 app.include_router(routers.knowledgebase.router)
+app.include_router(routers.document.router)
 
 admin = Admin(app, engine)
 admin.add_view(UserAdmin)

@@ -1,16 +1,19 @@
 from datetime import datetime
-from pydantic import BaseModel
-from typing import Optional
 
-from app import models, schemas
+from pydantic import BaseModel
+
+from app import models
+
 
 class DocumentBase(BaseModel):
     title: str
-    remaker: str
+    remark: str | None = None
 
 
-class DocumentUpdate(DocumentBase):
-    pass
+class DocumentUpdate(BaseModel):
+    title: str | None = None
+    remark: str | None = None
+
 
 class DocumentSimple(BaseModel):
     id: int
@@ -21,17 +24,20 @@ class DocumentSimple(BaseModel):
     chunk_count: int
     updated_at: datetime
 
-class DoucumentDetail(DocumentBase):
+    model_config = {"from_attributes": True}
+
+
+class DocumentDetail(DocumentBase):
     id: int
-    title: str
     filename: str
-    mime_type: str
-    page_count: int
+    mime_type: str | None = None
+    page_count: int | None = None
     file_hash: str
     chunk_count: int
-    parse_duration: int
-    remark: str
+    parse_duration: int | None = None
     created_at: datetime
+    updated_at: datetime
+
 
 class DocumentList(BaseModel):
     total: int
