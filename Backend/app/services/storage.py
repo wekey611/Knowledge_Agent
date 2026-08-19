@@ -4,8 +4,8 @@ from uuid import uuid4
 
 
 class StorageService:
-    def __init__(self):
-        self.base_path = Path("storage/knowledge_bases")
+    # 类属性：存储根目录，测试可 monkeypatch 注入临时目录
+    base_path = Path("storage/knowledge_bases")
 
     async def save(
             self,
@@ -13,7 +13,7 @@ class StorageService:
             filename:str,
             content:bytes,
     )->str:
-        kb_path =self.base_path/str(kb_id)
+        kb_path = self.base_path / str(kb_id)
         kb_path.mkdir(
             parents=True,
             exist_ok=True,

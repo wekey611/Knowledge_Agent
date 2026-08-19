@@ -32,11 +32,13 @@ class DocumentDetail(DocumentBase):
     filename: str
     mime_type: str | None = None
     page_count: int | None = None
-    file_hash: str
+    file_hash: str | None = None
     chunk_count: int
     parse_duration: int | None = None
     created_at: datetime
     updated_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class DocumentList(BaseModel):
