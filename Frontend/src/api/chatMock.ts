@@ -1,24 +1,12 @@
 // ========================================
-// Chat / Document — Mock API
-// 后端尚未开发文档上传与 RAG 聊天接口，前端暂用模拟数据
+// Chat — Mock API
+// 后端尚未开发 RAG 聊天接口，前端暂用模拟数据
 // ========================================
-import type { ChatMessage, Document } from '@/types/knowledge'
+import type { ChatMessage } from '@/types/knowledge'
 
 function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
-
-const mockDocuments: Document[] = [
-  { id: 1, knowledgeBaseId: 1, title: '产品规格说明书 v2.1', fileType: 'pdf', size: 2048, parentId: null, createdAt: '2026-06-01T00:00:00Z' },
-  { id: 2, knowledgeBaseId: 1, title: '用户操作手册', fileType: 'pdf', size: 5120, parentId: null, createdAt: '2026-06-05T00:00:00Z' },
-  { id: 3, knowledgeBaseId: 1, title: '常见问题 FAQ', fileType: 'md', size: 256, parentId: null, createdAt: '2026-06-10T00:00:00Z' },
-  { id: 4, knowledgeBaseId: 1, title: 'API 参考文档', fileType: 'html', size: 1024, parentId: null, createdAt: '2026-06-15T00:00:00Z' },
-  { id: 5, knowledgeBaseId: 2, title: '系统架构概览', fileType: 'pdf', size: 3072, parentId: null, createdAt: '2026-06-10T00:00:00Z' },
-  { id: 6, knowledgeBaseId: 2, title: '数据库设计文档', fileType: 'md', size: 1536, parentId: null, createdAt: '2026-06-15T00:00:00Z' },
-  { id: 7, knowledgeBaseId: 2, title: '部署指南', fileType: 'md', size: 768, parentId: null, createdAt: '2026-06-20T00:00:00Z' },
-  { id: 8, knowledgeBaseId: 3, title: '2026 Q2 行业报告', fileType: 'pdf', size: 8192, parentId: null, createdAt: '2026-07-01T00:00:00Z' },
-  { id: 9, knowledgeBaseId: 3, title: '竞品分析矩阵', fileType: 'xlsx', size: 512, parentId: null, createdAt: '2026-07-05T00:00:00Z' },
-]
 
 const mockMessages: ChatMessage[] = [
   {
@@ -60,11 +48,6 @@ const mockMessages: ChatMessage[] = [
     status: 'sent',
   },
 ]
-
-export async function fetchDocuments(kbId: number): Promise<Document[]> {
-  await delay(500)
-  return mockDocuments.filter((d) => d.knowledgeBaseId === kbId)
-}
 
 export async function fetchMessages(kbId: number): Promise<ChatMessage[]> {
   await delay(600)

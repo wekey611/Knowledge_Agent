@@ -49,11 +49,11 @@
           @click="$emit('select-doc', doc.id)"
         >
           <div class="doc-icon">
-            <svg v-if="doc.fileType === 'pdf'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg v-if="isPdf(doc)" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14 2 14 8 20 8" />
             </svg>
-            <svg v-else-if="doc.fileType === 'md'" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg v-else-if="isMarkdown(doc)" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
               <polyline points="14 2 14 8 20 8" />
               <line x1="16" y1="13" x2="8" y2="13" />
@@ -66,8 +66,8 @@
               <line x1="16" y1="17" x2="8" y2="17" />
             </svg>
           </div>
-          <span class="doc-name">{{ doc.title }}</span>
-          <span class="doc-type">{{ doc.fileType.toUpperCase() }}</span>
+          <span class="doc-name" :title="doc.filename">{{ doc.filename }}</span>
+          <span class="doc-type">{{ fileExt(doc) }}</span>
         </div>
       </div>
     </div>
@@ -76,12 +76,12 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import type { KnowledgeBaseSimple, Document } from '@/types/knowledge'
+import type { KnowledgeBaseSimple, DocumentSimple } from '@/types/knowledge'
 import EmptyState from '@/components/common/EmptyState.vue'
 
 const props = defineProps<{
   knowledgeBase: KnowledgeBaseSimple | null
-  documents: Document[]
+  documents: DocumentSimple[]
   loading: boolean
   activeDocId?: number | null
 }>()
@@ -95,8 +95,22 @@ const searchQuery = ref('')
 const filteredDocuments = computed(() => {
   if (!searchQuery.value.trim()) return props.documents
   const q = searchQuery.value.toLowerCase()
-  return props.documents.filter((d) => d.title.toLowerCase().includes(q))
+  return props.documents.filter((d) => d.filename.toLowerCase().includes(q))
 })
+
+function fileExt(doc: DocumentSimple): string {
+  const ext = doc.filename.split('.').pop()
+  return ext ? ext.toUpperCase() : 'FILE'
+}
+
+function isPdf(doc: DocumentSimple): boolean {
+  return fileExt(doc) === 'PDF'
+}
+
+function isMarkdown(doc: DocumentSimple): boolean {
+  const ext = fileExt(doc)
+  return ext === 'MD' || ext === 'MARKDOWN'
+}
 </script>
 
 <style scoped>

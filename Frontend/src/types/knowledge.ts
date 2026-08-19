@@ -92,16 +92,55 @@ export interface OrganizationUpdate {
   description: string
 }
 
-// === 文档 / 聊天（后端尚未开发，保留 mock 用） ===
+// === 文档 ===
 
-export interface Document {
+export type ParserStatus = 'waiting' | 'parsing' | 'embedding' | 'completed' | 'failed'
+
+/** DocumentSimple（列表项） */
+export interface DocumentSimple {
   id: number
-  knowledgeBaseId: number
   title: string
-  fileType: string
-  size: number
-  parentId: number | null
-  createdAt: string
+  filename: string
+  file_size: number
+  parser_status: ParserStatus
+  chunk_count: number
+  updated_at: string
+}
+
+/** DocumentDetail */
+export interface DocumentDetail {
+  id: number
+  title: string
+  remark: string | null
+  filename: string
+  mime_type: string | null
+  page_count: number | null
+  file_hash: string
+  chunk_count: number
+  parse_duration: number | null
+  created_at: string
+  updated_at: string
+}
+
+export interface DocumentList {
+  total: number
+  data: DocumentSimple[]
+}
+
+export const PARSER_STATUS_LABELS: Record<ParserStatus, string> = {
+  waiting: '待解析',
+  parsing: '解析中',
+  embedding: '向量化',
+  completed: '已完成',
+  failed: '失败',
+}
+
+export const PARSER_STATUS_COLORS: Record<ParserStatus, string> = {
+  waiting: '#94A3B8',
+  parsing: '#2563EB',
+  embedding: '#8B5CF6',
+  completed: '#10B981',
+  failed: '#EF4444',
 }
 
 export interface ChatMessage {

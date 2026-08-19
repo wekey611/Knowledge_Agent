@@ -14,6 +14,7 @@
       <router-view
         :knowledge-base="knowledgeBase"
         :kb-loading="kbLoading"
+        :can-manage="canManage"
         :messages="messages"
         :messages-loading="msgsLoading"
         :sending="sending"
@@ -22,6 +23,7 @@
         @load-messages="loadMessages"
         @retry-message="handleRetry"
         @suggest="handleSuggest"
+        @documents-changed="reloadDocuments"
       />
     </div>
 
@@ -45,12 +47,12 @@
         />
         <div v-else class="doc-preview">
           <div class="doc-preview-header">
-            <el-tag size="small">{{ activeDoc.fileType.toUpperCase() }}</el-tag>
-            <span class="doc-size">{{ formatSize(activeDoc.size) }}</span>
+            <el-tag size="small">{{ fileExt(activeDoc.filename) }}</el-tag>
+            <span class="doc-size">{{ formatSize(activeDoc.file_size) }}</span>
           </div>
-          <p class="doc-preview-title">{{ activeDoc.title }}</p>
+          <p class="doc-preview-title">{{ activeDoc.filename }}</p>
           <p class="doc-preview-meta">
-            创建于 {{ formatDate(activeDoc.createdAt) }}
+            更新于 {{ formatDate(activeDoc.updated_at) }}
           </p>
           <div class="doc-preview-placeholder">
             <p>文档内容预览功能将在后续版本中提供</p>
@@ -65,22 +67,30 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import type { KnowledgeBaseSimple, Document, ChatMessage } from '@/types/knowledge'
+import type { KnowledgeBaseSimple, DocumentSimple, ChatMessage } from '@/types/knowledge'
+import { useAuthStore } from '@/stores/auth'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useChatStore } from '@/stores/chat'
-import { fetchDocuments } from '@/api/chatMock'
+import { fetchDocuments as fetchDocumentList } from '@/api/document'
 import KnowledgeSidebar from '@/components/knowledge/KnowledgeSidebar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 
 const route = useRoute()
+const authStore = useAuthStore()
 const knowledgeStore = useKnowledgeStore()
 const chatStore = useChatStore()
 
 const kbId = computed(() => parseInt(route.params.id as string))
 const kbLoading = ref(false)
 const docsLoading = ref(false)
-const documents = ref<Document[]>([])
+const documents = ref<DocumentSimple[]>([])
 const activeDocId = ref<number | null>(null)
+/** KB 创建者 id（从详情接口获取，用于前端权限控制） */
+const kbOwnerId = ref<number | null>(null)
+
+const canManage = computed(
+  () => kbOwnerId.value !== null && kbOwnerId.value === authStore.user?.id
+)
 
 const knowledgeBase = computed<KnowledgeBaseSimple | null>(() => {
   return knowledgeStore.getKnowledgeBase(kbId.value) || null
@@ -136,6 +146,33 @@ function formatDate(dateStr: string): string {
   }
 }
 
+function fileExt(filename: string): string {
+  const ext = filename.split('.').pop()
+  return ext ? ext.toUpperCase() : 'FILE'
+}
+
+// 加载文档列表 + KB 创建者（决定上传/删除权限）
+async function loadDocsAndOwner(id: number) {
+  docsLoading.value = true
+  try {
+    const res = await fetchDocumentList(id)
+    documents.value = res.data
+  } catch {
+    documents.value = []
+  } finally {
+    docsLoading.value = false
+  }
+  const detail = await knowledgeStore.refreshKnowledgeBase(id)
+  kbOwnerId.value = detail?.owner_id ?? null
+}
+
+/** 文档数量变化后刷新（上传/删除后由 documents.vue 触发） */
+async function reloadDocuments() {
+  const id = kbId.value
+  if (!id) return
+  await loadDocsAndOwner(id)
+}
+
 // Load KB info and documents when route changes
 watch(kbId, async (id) => {
   activeDocId.value = null
@@ -147,15 +184,8 @@ watch(kbId, async (id) => {
     kbLoading.value = false
   }
 
-  // Load documents
-  docsLoading.value = true
-  try {
-    documents.value = await fetchDocuments(id)
-  } catch {
-    documents.value = []
-  } finally {
-    docsLoading.value = false
-  }
+  // Load documents + owner
+  await loadDocsAndOwner(id)
 
   // Load chat messages
   loadMessages()
