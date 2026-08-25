@@ -30,13 +30,24 @@ class DocumentRepository:
         result = await self.db.execute(stmt)
         return result.scalars().first()
 
-    async def delete(self, kb_id: int, document_id: int) -> bool:
+    # 按内容哈希查重（同一知识库内）
+    async def get_by_hash(self, kb_id: int, file_hash: str):
+        stmt = select(Document).where(
+            Document.kb_id == kb_id,
+            Document.file_hash == file_hash,
+        )
+        result = await self.db.execute(stmt)
+        return result.scalars().first()
+
+    async def delete(self, kb_id: int, document_id: int) -> str | None:
         stmt = select(Document).where(Document.kb_id == kb_id, Document.id == document_id)
         result = await self.db.execute(stmt)
         document = result.scalars().first()
         if document is None:
-            return False
+            return None
 
+        # 返回 storage_key，供 service 层清理物理文件
+        storage_key = document.storage_key
         await self.db.delete(document)
         await self.db.commit()
-        return True
+        return storage_key

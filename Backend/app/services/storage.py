@@ -27,3 +27,9 @@ class StorageService:
         file_path.write_bytes(content)
 
         return str(file_path)
+
+    async def delete(self, key: str):
+        """删除存储中的文件（不存在则静默通过，便于幂等清理）"""
+        path = Path(key)
+        if path.exists():
+            path.unlink()

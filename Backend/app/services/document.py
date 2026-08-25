@@ -40,10 +40,19 @@ class DocumentService:
         # 2.读取文件
         content = await file.read()
 
-        # 3. 保存文件
+        # 3. 查重：同一知识库内相同内容拒绝（策略A）
+        file_hash = hashlib.sha256(content).hexdigest()
+        exists = await self.repo.get_by_hash(kb_id=kb.id, file_hash=file_hash)
+        if exists:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="该文件已存在于知识库中",
+            )
+
+        # 4. 保存文件
         storage_path = await self.storage.save(kb_id=kb.id, filename=file.filename, content=content)
 
-        # 4. 创建数据库记录
+        # 5. 创建数据库记录
         document = Document(
             kb_id=kb.id,
             uploader_id=user.id,
@@ -52,7 +61,7 @@ class DocumentService:
             file_type=Path(file.filename).suffix.lstrip(".").lower(),
             mime_type=file.content_type,
             file_size=len(content),
-            file_hash=hashlib.sha256(content).hexdigest(),
+            file_hash=file_hash,
             storage_key=storage_path,
         )
         await self.repo.create(document)
@@ -75,9 +84,12 @@ class DocumentService:
     async def delete(self, kb_id: int, document_id: int, current_user):
         await core.permissions.check_knowledge_base_owner(
             kb_id=kb_id, current_user=current_user, db=self.repo.db)
-        deleted = await self.repo.delete(kb_id, document_id)
-        if not deleted:
+        storage_key = await self.repo.delete(kb_id, document_id)
+        if storage_key is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在")
+
+        # 记录删除成功后再清理物理文件（孤儿文件可容忍，幽灵记录不可）
+        await self.storage.delete(storage_key)
 
     async def download(
             self,
