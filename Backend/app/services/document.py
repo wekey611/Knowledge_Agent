@@ -12,6 +12,8 @@ from app.repositories.document import DocumentRepository
 from app.services.storage import StorageService
 from app.repositories.knowledgebase import KnowledgeRepository
 
+PREVIEW_TYPES = {"pdf", "txt", "md"}
+
 
 class DocumentService:
 
@@ -116,4 +118,31 @@ class DocumentService:
             path=str(file_path),
             filename=document.filename,
             media_type=document.mime_type or "application/octet-stream",
+        )
+
+    async def preview(self, kb_id: int, document_id: int, current_user):
+        # 1. 权限检查
+        await core.permissions.check_knowledge_base_access(
+            kb_id=kb_id, current_user=current_user, db=self.repo.db)
+
+        # 2. 查询文档
+        document = await self.repo.get_detail(kb_id, document_id)
+        if document is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在")
+
+        # 3. 检查文件类型
+        if document.file_type not in PREVIEW_TYPES:
+            raise HTTPException(status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="文件类型不允许预览")
+
+        # 4. 物理文件存在性检查
+        file_path = Path(document.storage_key)
+        if not file_path.exists():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在于存储中")
+
+        # 5. 返回文件流，用原始文件名
+        return FileResponse(
+            path=str(file_path),
+            filename=document.filename,
+            media_type=document.mime_type or "application/octet-stream",
+            content_disposition_type="inline"
         )

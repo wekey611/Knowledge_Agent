@@ -61,3 +61,15 @@ async def download_document(
 ):
     service = services.document.DocumentService(db)
     return await service.download(kb_id=kb_id, document_id=document_id, current_user=current_user)
+
+@router.get("/{kb_id}/documents/{document_id}/preview", status_code=status.HTTP_200_OK)
+async def preview_document(
+        kb_id: int = Path(..., description="Knowledge Base ID"),
+        document_id: int = Path(..., description="Document ID"),
+        current_user: models.user.User = Depends(core.oauth2.get_current_user),
+        db: AsyncSession = Depends(get_db)
+):
+    service = services.document.DocumentService(db)
+    return await service.preview(kb_id=kb_id, document_id=document_id, current_user=current_user)
+
+

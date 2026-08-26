@@ -52,3 +52,19 @@ export async function downloadDocument(kbId: number, documentId: number, filenam
   document.body.removeChild(a)
   URL.revokeObjectURL(url)
 }
+
+/** 支持的预览类型（与后端 PREVIEW_TYPES 保持一致） */
+export const PREVIEW_EXTENSIONS = ['pdf', 'txt', 'md', 'markdown']
+
+export function isPreviewable(filename: string): boolean {
+  const ext = filename.split('.').pop()?.toLowerCase() || ''
+  return PREVIEW_EXTENSIONS.includes(ext)
+}
+
+/** 文档预览（GET .../preview → blob），返回 objectURL */
+export async function previewDocument(kbId: number, documentId: number): Promise<string> {
+  const res = await http.get<Blob>(`/knowledge-bases/${kbId}/documents/${documentId}/preview`, {
+    responseType: 'blob',
+  })
+  return URL.createObjectURL(res.data)
+}

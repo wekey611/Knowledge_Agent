@@ -54,9 +54,30 @@
           <p class="doc-preview-meta">
             更新于 {{ formatDate(activeDoc.updated_at) }}
           </p>
-          <div class="doc-preview-placeholder">
-            <p>文档内容预览功能将在后续版本中提供</p>
+
+          <!-- Preview loading -->
+          <div v-if="previewLoading" class="preview-loading">
+            <el-skeleton animated :rows="8" />
           </div>
+
+          <!-- Preview error -->
+          <EmptyState
+            v-else-if="previewError"
+            type="error"
+            title="预览失败"
+            :description="previewError"
+          />
+
+          <!-- Unsupported type -->
+          <EmptyState
+            v-else-if="!previewable"
+            type="empty"
+            title="暂不支持预览"
+            description="该文件类型暂不支持在线预览，可下载查看"
+          />
+
+          <!-- Preview iframe -->
+          <iframe v-else-if="previewUrl" :src="previewUrl" class="preview-frame" />
         </div>
       </div>
     </div>
@@ -64,14 +85,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import type { KnowledgeBaseSimple, DocumentSimple, ChatMessage } from '@/types/knowledge'
 import { useAuthStore } from '@/stores/auth'
 import { useKnowledgeStore } from '@/stores/knowledge'
 import { useChatStore } from '@/stores/chat'
-import { fetchDocuments as fetchDocumentList } from '@/api/document'
+import { fetchDocuments as fetchDocumentList, isPreviewable, previewDocument } from '@/api/document'
 import KnowledgeSidebar from '@/components/knowledge/KnowledgeSidebar.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 
@@ -107,6 +128,38 @@ const chatError = computed(() => chatStore.error)
 const activeDoc = computed(() => {
   if (!activeDocId.value) return null
   return documents.value.find((d) => d.id === activeDocId.value) || null
+})
+
+// === 文档预览 ===
+const previewUrl = ref('')
+const previewLoading = ref(false)
+const previewError = ref('')
+
+const previewable = computed(() =>
+  activeDoc.value ? isPreviewable(activeDoc.value.filename) : false
+)
+
+watch(activeDocId, async (id) => {
+  // 清理上一个预览
+  if (previewUrl.value) {
+    URL.revokeObjectURL(previewUrl.value)
+    previewUrl.value = ''
+  }
+  previewError.value = ''
+  if (!id || !activeDoc.value || !previewable.value) return
+
+  previewLoading.value = true
+  try {
+    previewUrl.value = await previewDocument(kbId.value, id)
+  } catch (e: any) {
+    previewError.value = e?.response?.data?.detail || '预览加载失败'
+  } finally {
+    previewLoading.value = false
+  }
+})
+
+onUnmounted(() => {
+  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
 })
 
 function selectDoc(id: number) {
@@ -283,12 +336,16 @@ watch(kbId, async (id) => {
   margin-bottom: var(--space-6);
 }
 
-.doc-preview-placeholder {
-  padding: var(--space-8) var(--space-5);
-  text-align: center;
-  border: 1px dashed var(--color-border);
+.preview-loading {
+  padding: var(--space-4) 0;
+}
+
+.preview-frame {
+  width: 100%;
+  height: 70vh;
+  border: 1px solid var(--color-border-light);
   border-radius: var(--radius-md);
-  color: var(--color-muted-foreground);
-  font-size: var(--text-sm);
+  background: var(--color-card);
+  margin-top: var(--space-3);
 }
 </style>
