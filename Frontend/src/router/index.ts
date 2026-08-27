@@ -5,7 +5,6 @@ import { useAuthStore } from '@/stores/auth'
 const routes: RouteRecordRaw[] = [
   // Backward-compatible redirects
   { path: '/login', redirect: '/auth/login' },
-  { path: '/request', redirect: '/auth/request' },
   { path: '/register', redirect: '/auth/register' },
 
   {
@@ -71,7 +70,7 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/pages/knowledge/index.vue'),
       },
       {
-        path: 'knowledge/:id',
+        path: 'knowledge/:id(\\d+)',
         component: () => import('@/layouts/KnowledgeLayout.vue'),
         meta: { requiresAuth: true },
         children: [
@@ -94,6 +93,8 @@ const routes: RouteRecordRaw[] = [
       },
     ],
   },
+  // 全局 catch-all：兜底未匹配路径（放最后）
+  { path: '/:pathMatch(.*)*', redirect: '/dashboard' },
 ]
 
 const router = createRouter({
@@ -103,6 +104,17 @@ const router = createRouter({
 
 router.beforeEach((to, _from, next) => {
   const auth = useAuthStore()
+
+  // /knowledge/<非数字> 这种乱敲的 URL，统一跳回 KB 列表
+  // 比如 /knowledge/documents、/knowledge/settings 等
+  const kmMatch = to.path.match(/^\/knowledge\/([^\/]+)$/)
+  if (kmMatch) {
+    const seg = kmMatch[1]
+    if (!/^\d+$/.test(seg) && !['documents', 'settings'].includes(seg)) {
+      next({ path: '/knowledge' })
+      return
+    }
+  }
 
   // 需要登录但未登录 → 跳转登录页
   if (to.meta.requiresAuth && !auth.isLoggedIn) {
@@ -116,8 +128,8 @@ router.beforeEach((to, _from, next) => {
     return
   }
 
-  // 已登录用户访问登录页 → 跳转首页
-  if (to.name === 'Login' && auth.isLoggedIn) {
+  // 已登录用户访问登录页 / 申请页 → 跳转首页
+  if ((to.name === 'Login' || to.name === 'Request') && auth.isLoggedIn) {
     next({ name: 'Dashboard' })
     return
   }

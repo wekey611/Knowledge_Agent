@@ -52,7 +52,7 @@
 
     <ul v-else class="request-list">
       <li v-for="r in filtered" :key="r.id" class="request-row">
-        <div class="request-row__id mono">#{{ String(r.id).padStart(3, '0') }}</div>
+        <div class="request-row__id mono">{{ r.id }}</div>
         <div class="request-row__main">
           <div class="request-row__email">
             <span>{{ r.email }}</span>

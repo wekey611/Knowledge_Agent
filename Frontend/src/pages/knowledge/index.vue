@@ -80,7 +80,6 @@
         @click="$router.push(`/knowledge/${kb.id}`)"
       >
         <header class="kb-card__head">
-          <span class="kb-card__index mono">#{{ String(kb.id).padStart(3, '0') }}</span>
           <span class="badge" :class="`badge--${scopeVariant(kb.scope)}`">
             <span class="dot" /> {{ SCOPE_LABELS[kb.scope] }}
           </span>
@@ -127,7 +126,6 @@
         @click="$router.push(`/knowledge/${kb.id}`)"
       >
         <div class="table__cell table__cell--main">
-          <span class="mono faint">#{{ String(kb.id).padStart(3, '0') }}</span>
           <span class="table__name">{{ kb.name }}</span>
         </div>
         <div class="table__cell">
@@ -369,8 +367,9 @@ function formatTime(iso: string) {
   &__head {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: $s-3;
+    justify-content: flex-end;
+    margin-bottom: $s-4;
+    min-height: 24px;
   }
   &__index {
     font-family: $font-mono;

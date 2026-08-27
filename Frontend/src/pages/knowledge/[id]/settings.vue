@@ -53,10 +53,6 @@
           <span class="eyebrow">元数据</span>
           <dl class="meta-list">
             <div class="meta-row">
-              <dt>编号</dt>
-              <dd class="mono">#{{ String(kb.id).padStart(3, '0') }}</dd>
-            </div>
-            <div class="meta-row">
               <dt>可见范围</dt>
               <dd>
                 <span class="badge" :class="`badge--${scopeVariant(kb.scope)}`">

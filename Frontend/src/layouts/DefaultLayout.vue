@@ -88,12 +88,16 @@ import { useRoute, useRouter } from 'vue-router'
 import AppLogo from '@/components/common/AppLogo.vue'
 import UserAvatar from '@/components/common/UserAvatar.vue'
 import { useAuthStore } from '@/stores/auth'
+import { useTokenExpiryWatcher } from '@/composables/useTokenExpiry'
 import type { Component, Directive } from 'vue'
 
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const menuOpen = ref(false)
+
+// 登录态 JWT 过期主动检测（空闲期也能发现过期并提示重新登录）
+useTokenExpiryWatcher()
 
 function iconSvg(paths: unknown[]): Component {
   // 简易 SVG icon 组件
@@ -137,15 +141,7 @@ const navItems: { path: string; label: string; icon: Component; badge?: string }
       h('path', { d: 'M15 13v-.5c0-1.4 1.1-2.5 2.5-2.5s2.5 1.1 2.5 2.5' }),
     ]),
   },
-  {
-    path: '/request',
-    label: '我的申请',
-    icon: iconSvg([
-      h('rect', { x: 4, y: 3, width: 16, height: 18, rx: 2 }),
-      h('path', { d: 'M8 8h8M8 12h8M8 16h5', 'stroke-linecap': 'round' }),
-    ]),
-  },
-]
+  ]
 
 if (auth.isAdmin) {
   navItems.push({
@@ -170,7 +166,6 @@ const breadcrumb = computed(() => {
   if (route.path === '/organizations') return ['组织', '我的组织']
   if (route.path.startsWith('/admin')) return ['管理员', '审核']
   if (route.path === '/dashboard') return ['工作台', '总览']
-  if (route.path === '/request') return ['申请', '账号']
   return ['', '']
 })
 

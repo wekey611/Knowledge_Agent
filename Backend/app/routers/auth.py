@@ -17,3 +17,7 @@ async def login(user_credentials: OAuth2PasswordRequestForm = Depends(), db: Asy
 async def list_all_requests(user=Depends(core.permissions.require_admin),db:AsyncSession=Depends(get_db)):
     repo =repositories.request.RequestRepository(db)
     return await repo.get_all()
+
+@router.get("/me",response_model=schemas.user.UserOut)
+async def read_users_me(current_user: models.user.User = Depends(core.permissions.get_current_user)):
+    return current_user

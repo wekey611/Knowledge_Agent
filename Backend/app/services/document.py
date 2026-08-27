@@ -68,6 +68,13 @@ class DocumentService:
         )
         await self.repo.create(document)
 
+        # 6. 更新知识库统计（文档数 +1，chunk 数先按 +0，等解析完成后回填）
+        await self.kb_repo.increment_counts(kb_id=kb.id, doc_delta=1, chunk_delta=0)
+
+        # increment_counts 内部 commit 会使 document 对象过期（expire_on_commit），
+        # 重新 refresh 避免 Pydantic 序列化时触发懒加载 → MissingGreenlet
+        await self.db.refresh(document)
+
         return document
 
     async def get_list(self, kb_id: int, current_user):
@@ -86,9 +93,17 @@ class DocumentService:
     async def delete(self, kb_id: int, document_id: int, current_user):
         await core.permissions.check_knowledge_base_owner(
             kb_id=kb_id, current_user=current_user, db=self.repo.db)
+        document = await self.repo.get_detail(kb_id, document_id)
+        if document is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在")
         storage_key = await self.repo.delete(kb_id, document_id)
         if storage_key is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在")
+
+        # 知识库统计自减
+        await self.kb_repo.increment_counts(
+            kb_id=kb_id, doc_delta=-1, chunk_delta=-document.chunk_count
+        )
 
         # 记录删除成功后再清理物理文件（孤儿文件可容忍，幽灵记录不可）
         await self.storage.delete(storage_key)

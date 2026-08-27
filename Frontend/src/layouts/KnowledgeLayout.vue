@@ -10,7 +10,6 @@
 
       <div class="kb-layout__title-block">
         <h1 class="kb-layout__title">{{ kbName || '知识库' }}</h1>
-        <span class="kb-layout__id mono">#{{ kbId }}</span>
       </div>
 
       <div class="kb-layout__tabs">
@@ -19,11 +18,11 @@
           :key="tab.path"
           :to="tab.path"
           custom
-          v-slot="{ navigate, isActive }"
+          v-slot="{ navigate, isExactActive }"
         >
           <button
             class="tab-item"
-            :class="{ 'tab-item--active': isActive }"
+            :class="{ 'tab-item--active': isExactActive }"
             @click="navigate"
           >
             <component :is="tab.icon" />
@@ -86,31 +85,35 @@ async function load() {
 onMounted(load)
 watch(kbId, load)
 
-const tabs = [
-  {
-    path: '',
-    label: '对话',
-    icon: () => h('svg', { viewBox: '0 0 24 24', width: 16, height: 16, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6 }, [
-      h('path', { d: 'M21 12a8 8 0 0 1-11.6 7.2L4 21l1.8-5.4A8 8 0 1 1 21 12z' }),
-    ]),
-  },
-  {
-    path: 'documents',
-    label: '文档',
-    icon: () => h('svg', { viewBox: '0 0 24 24', width: 16, height: 16, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6 }, [
-      h('path', { d: 'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z' }),
-      h('path', { d: 'M14 3v6h6' }),
-    ]),
-  },
-  {
-    path: 'settings',
-    label: '设置',
-    icon: () => h('svg', { viewBox: '0 0 24 24', width: 16, height: 16, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6 }, [
-      h('circle', { cx: 12, cy: 12, r: 3 }),
-      h('path', { d: 'M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z' }),
-    ]),
-  },
-]
+const tabs = computed(() =>
+  kbId.value
+    ? [
+        {
+          path: `/knowledge/${kbId.value}`,
+          label: '对话',
+          icon: () => h('svg', { viewBox: '0 0 24 24', width: 16, height: 16, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6 }, [
+            h('path', { d: 'M21 12a8 8 0 0 1-11.6 7.2L4 21l1.8-5.4A8 8 0 1 1 21 12z' }),
+          ]),
+        },
+        {
+          path: `/knowledge/${kbId.value}/documents`,
+          label: '文档',
+          icon: () => h('svg', { viewBox: '0 0 24 24', width: 16, height: 16, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6 }, [
+            h('path', { d: 'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z' }),
+            h('path', { d: 'M14 3v6h6' }),
+          ]),
+        },
+        {
+          path: `/knowledge/${kbId.value}/settings`,
+          label: '设置',
+          icon: () => h('svg', { viewBox: '0 0 24 24', width: 16, height: 16, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6 }, [
+            h('circle', { cx: 12, cy: 12, r: 3 }),
+            h('path', { d: 'M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z' }),
+          ]),
+        },
+      ]
+    : []
+)
 
 function scopeVariant(s: KnowledgeScope): string {
   return s === 'public' ? 'info' : s === 'org' ? 'accent' : 'success'

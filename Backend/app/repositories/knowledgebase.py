@@ -1,14 +1,10 @@
-from fastapi import HTTPException
-from mako.testing.helpers import result_lines
-from sqlalchemy import select, delete, exists, or_
+from sqlalchemy import select, update, exists, or_
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
-from starlette import status
-from app import models, schemas, settings
+from app import models, schemas
 
 
 class KnowledgeRepository:
-    def __init__(self, db=AsyncSession):
+    def __init__(self, db: AsyncSession):
         self.db = db
 
     async def create(self, owner_id, data):
@@ -23,7 +19,7 @@ class KnowledgeRepository:
         )
 
         self.db.add(kb)
-        await  self.db.commit()
+        await self.db.commit()
         await self.db.refresh(kb)
         return kb
 
@@ -93,7 +89,6 @@ class KnowledgeRepository:
         return result.scalars().one_or_none()
 
     # 更新知识库详情
-    # 更新知识库
     async def update(self, id, data):
         stmt = select(models.knowledge.KnowledgeBase).where(models.knowledge.KnowledgeBase.id == id)
         result = await self.db.execute(stmt)
@@ -109,6 +104,19 @@ class KnowledgeRepository:
         await self.db.commit()
         await self.db.refresh(kb)
         return kb
+
+    # 文档/chunk 计数自增自减（用于上传/删除/解析完成时统计 KB 上的 document_count / chunk_count）
+    async def increment_counts(self, kb_id: int, doc_delta: int = 0, chunk_delta: int = 0):
+        stmt = (
+            update(models.knowledge.KnowledgeBase)
+            .where(models.knowledge.KnowledgeBase.id == kb_id)
+            .values(
+                document_count=models.knowledge.KnowledgeBase.document_count + doc_delta,
+                chunk_count=models.knowledge.KnowledgeBase.chunk_count + chunk_delta,
+            )
+        )
+        await self.db.execute(stmt)
+        await self.db.commit()
 
     # 删除知识库（软删除）
     async def delete(self, id):

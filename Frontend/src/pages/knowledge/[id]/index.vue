@@ -30,6 +30,14 @@
                 · {{ doc.chunk_count }} 块
               </span>
             </div>
+            <div class="drawer__item-actions" @click.stop>
+              <button class="btn btn--ghost btn--icon btn--sm" title="预览" @click="openDocPreview(doc)">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+              <button class="btn btn--ghost btn--icon btn--sm" title="下载" @click="downloadDoc(doc)">
+                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 4v12M6 12l6 6 6-6M4 20h16" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              </button>
+            </div>
           </li>
           <li v-if="filteredDocs.length === 0" class="drawer__empty">
             <p class="muted">没有匹配的文档</p>
@@ -147,6 +155,21 @@
         </div>
       </transition>
 
+      <!-- 聊天抽屉里点文档 → 预览抽屉 + 全屏模态 -->
+      <DocumentPreviewDrawer
+        v-model="drawerDocOpen"
+        :doc="drawerDoc"
+        :src="drawerDocUrl"
+        :preview-key="drawerDocKey"
+        @fullscreen="drawerDocModal = true"
+      />
+      <DocumentPreviewModal
+        v-model="drawerDocModal"
+        :doc="drawerDoc"
+        :src="drawerDocUrl"
+        :preview-key="drawerDocKey"
+      />
+
       <!-- Input -->
       <form class="chat-input" @submit.prevent="send">
         <textarea
@@ -169,12 +192,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { fetchDocuments } from '@/api/document'
+import { fetchDocuments, previewDocument, downloadDocument } from '@/api/document'
 import { useAuthStore } from '@/stores/auth'
 import type { DocumentSimple, SourceReference } from '@/types/knowledge'
 import { PARSER_STATUS_LABELS } from '@/types/knowledge'
+import DocumentPreviewDrawer from '@/components/knowledge/DocumentPreviewDrawer.vue'
+import DocumentPreviewModal from '@/components/knowledge/DocumentPreviewModal.vue'
 
 const route = useRoute()
 const auth = useAuthStore()
@@ -200,6 +225,55 @@ interface Msg {
 const messages = ref<Msg[]>([])
 const previewSource = ref<SourceReference | null>(null)
 
+// 文档预览（聊天抽屉里点击）
+const drawerDocOpen = ref(false)
+const drawerDoc = ref<DocumentSimple | null>(null)
+const drawerDocUrl = ref<string | null>(null)
+const drawerDocKey = ref(0)
+const drawerDocModal = ref(false)
+
+let docSeq = 0
+
+async function openDocPreview(doc: DocumentSimple) {
+  if (!kbId.value || Number.isNaN(kbId.value)) return
+  const seq = ++docSeq
+  drawerDoc.value = doc
+  drawerDocUrl.value = null
+  drawerDocOpen.value = true
+  drawerDocKey.value++
+  try {
+    const url = await previewDocument(kbId.value, doc.id)
+    if (seq !== docSeq) {
+      URL.revokeObjectURL(url)
+      return
+    }
+    drawerDocUrl.value = url
+  } catch {
+    if (seq === docSeq) drawerDocUrl.value = null
+  }
+}
+
+async function downloadDoc(doc: DocumentSimple) {
+  if (!kbId.value || Number.isNaN(kbId.value)) return
+  try {
+    await downloadDocument(kbId.value, doc.id, doc.filename)
+  } catch {
+    /* ignore */
+  }
+}
+
+function cleanupDocPreview() {
+  if (drawerDocUrl.value) {
+    URL.revokeObjectURL(drawerDocUrl.value)
+    drawerDocUrl.value = null
+  }
+  drawerDoc.value = null
+}
+
+watch([drawerDocOpen, drawerDocModal], ([d, m]) => {
+  if (!d && !m) setTimeout(cleanupDocPreview, 300)
+})
+
 const userInitial = computed(() => auth.user?.email?.[0]?.toUpperCase() || '·')
 
 const filteredDocs = computed(() => {
@@ -223,6 +297,25 @@ const templates = [
 
 const canSend = computed(() => input.value.trim().length > 0)
 
+const chatKey = computed(() => `demo_chat_${kbId.value}`)
+
+function loadChat() {
+  try {
+    const raw = localStorage.getItem(chatKey.value)
+    if (raw) messages.value = JSON.parse(raw)
+  } catch {
+    /* noop */
+  }
+}
+
+function saveChat() {
+  try {
+    localStorage.setItem(chatKey.value, JSON.stringify(messages.value))
+  } catch {
+    /* noop */
+  }
+}
+
 onMounted(async () => {
   try {
     const res = await fetchDocuments(kbId.value)
@@ -230,10 +323,18 @@ onMounted(async () => {
   } catch {
     /* noop */
   }
-  // seed mock conversation
+  // 加载该 KB 的历史对话
+  loadChat()
+  // 首次进入（无历史 + 有文档）才 seed
   if (messages.value.length === 0 && docs.value.length > 0) {
     seedDemo()
+    saveChat()
   }
+})
+
+watch(kbId, () => {
+  previewSource.value = null
+  loadChat()
 })
 
 function seedDemo() {
@@ -278,6 +379,7 @@ function send() {
   input.value = ''
   autoResize()
   scrollToBottom()
+  saveChat()
   mockReply(text)
 }
 
@@ -310,6 +412,7 @@ function mockReply(question: string) {
       clearInterval(interval)
       placeholder.streaming = false
     }
+    saveChat()
     scrollToBottom()
   }, 30)
 }
@@ -320,8 +423,10 @@ function applyTemplate(t: { prompt: string }) {
 }
 
 function clearChat() {
+  if (!confirm('确认清空当前知识库的对话？')) return
   messages.value = []
   previewSource.value = null
+  saveChat()
 }
 
 function citeDocument(doc: DocumentSimple) {
@@ -394,6 +499,7 @@ function scrollToBottom() {
   }
   &__item {
     display: flex;
+    align-items: center;
     gap: $s-2;
     padding: $s-3;
     border-radius: $r-md;
@@ -434,6 +540,16 @@ function scrollToBottom() {
     align-items: center;
     gap: $s-1;
   }
+  &__item-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+    opacity: 0.55;
+    transition: opacity $dur-fast $ease-out;
+  }
+  &:hover &__item-actions,
+  &:focus-within &__item-actions { opacity: 1; }
   &__empty {
     padding: $s-6;
     text-align: center;

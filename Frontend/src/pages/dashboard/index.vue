@@ -98,12 +98,12 @@
             <span class="quick-card__label">加入组织</span>
             <span class="quick-card__hint">协作 · 共享知识库</span>
           </button>
-          <button class="quick-card" @click="$router.push('/request')">
+          <button class="quick-card" @click="$router.push('/knowledge')">
             <span class="quick-card__icon">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5" stroke-linecap="round"/></svg>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 5a2 2 0 0 1 2-2h3l2 2h7a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M8 9h8M8 13h6" stroke-linecap="round"/></svg>
             </span>
-            <span class="quick-card__label">申请记录</span>
-            <span class="quick-card__hint">查看历史申请</span>
+            <span class="quick-card__label">浏览知识库</span>
+            <span class="quick-card__hint">查看所有 KB</span>
           </button>
           <button class="quick-card quick-card--accent" @click="soon">
             <span class="quick-card__icon accent-text">
