@@ -11,14 +11,30 @@ import type {
   OrgRole,
 } from '@/types/knowledge'
 
+function isDemo() {
+  return (localStorage.getItem('access_token') || '').startsWith('demo.')
+}
+
+function mockOrgs(): Organization[] {
+  const raw = localStorage.getItem('demo_orgs')
+  if (!raw) return []
+  return JSON.parse(raw) as any
+}
+
 /** 我的组织列表（GET /organization） */
 export async function fetchOrganizations(): Promise<Organization[]> {
+  if (isDemo()) return mockOrgs()
   const res = await http.get<Organization[]>('/organization')
   return res.data
 }
 
 /** 组织详情（GET /organization/{org_id}） */
 export async function fetchOrganization(orgId: number): Promise<Organization> {
+  if (isDemo()) {
+    const list = mockOrgs()
+    const o = list.find((x) => x.id === orgId)
+    if (o) return o
+  }
   const res = await http.get<Organization>(`/organization/${orgId}`)
   return res.data
 }
@@ -46,6 +62,11 @@ export async function deleteOrganization(orgId: number): Promise<unknown> {
 
 /** 成员列表（GET /organization/{org_id}/members） */
 export async function fetchMembers(orgId: number): Promise<OrganizationMember[]> {
+  if (isDemo()) {
+    const list = mockOrgs()
+    const o = list.find((x) => x.id === orgId)
+    return (o?.members ?? []) as any
+  }
   const res = await http.get<OrganizationMember[]>(`/organization/${orgId}/members`)
   return res.data
 }

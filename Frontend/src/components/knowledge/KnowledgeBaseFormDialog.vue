@@ -1,185 +1,301 @@
 <template>
-  <el-dialog
-    :model-value="modelValue"
-    :title="isEdit ? '编辑知识库' : '创建知识库'"
-    width="520px"
-    :close-on-click-modal="false"
-    @update:model-value="$emit('update:modelValue', $event)"
-    @closed="handleClosed"
-  >
-    <el-form ref="formRef" :model="form" :rules="rules" label-width="96px" label-position="left">
-      <el-form-item label="名称" prop="name">
-        <el-input
-          v-model="form.name"
-          placeholder="知识库名称"
-          maxlength="100"
-          show-word-limit
-        />
-      </el-form-item>
+  <transition name="fade">
+    <div v-if="modelValue" class="modal-backdrop" @click.self="$emit('update:modelValue', false)">
+      <div class="modal">
+        <header class="modal__head">
+          <div>
+            <span class="eyebrow">新建</span>
+            <h2 class="modal__title">创建知识库</h2>
+          </div>
+          <button class="btn btn--icon btn--ghost btn--sm" @click="$emit('update:modelValue', false)">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 6l12 12M6 18L18 6" stroke-linecap="round"/></svg>
+          </button>
+        </header>
 
-      <el-form-item label="描述" prop="description">
-        <el-input
-          v-model="form.description"
-          type="textarea"
-          :rows="3"
-          placeholder="描述这个知识库的用途（可选）"
-        />
-      </el-form-item>
+        <form @submit.prevent="handleSubmit" class="modal__body">
+          <div class="field">
+            <label class="field__label">名称</label>
+            <input
+              ref="firstField"
+              v-model="form.name"
+              class="input"
+              placeholder="例如：产品手册 2025"
+              maxlength="100"
+              required
+            />
+            <span class="field__counter mono faint">{{ form.name.length }}/100</span>
+          </div>
 
-      <el-form-item v-if="!isEdit" label="可见范围" prop="scope">
-        <el-radio-group v-model="form.scope">
-          <el-radio value="personal">个人</el-radio>
-          <el-radio value="org" :disabled="organizations.length === 0">组织</el-radio>
-          <el-radio v-if="isAdmin" value="public">公开</el-radio>
-        </el-radio-group>
-        <div v-if="form.scope === 'org' && organizations.length === 0" class="form-hint">
-          你还没有加入任何组织，请先创建或加入组织
-        </div>
-      </el-form-item>
+          <div class="field">
+            <label class="field__label">描述</label>
+            <textarea
+              v-model="form.description"
+              class="textarea"
+              placeholder="简单说明用途（可选）"
+              rows="2"
+            />
+          </div>
 
-      <el-form-item v-if="!isEdit && form.scope === 'org'" label="所属组织" prop="org_id">
-        <el-select v-model="form.org_id" placeholder="选择组织" style="width: 100%">
-          <el-option
-            v-for="org in organizations"
-            :key="org.id"
-            :label="org.name"
-            :value="org.id"
-          />
-        </el-select>
-      </el-form-item>
+          <div class="field">
+            <label class="field__label">可见范围</label>
+            <div class="radio-row">
+              <label
+                v-for="opt in scopeOptions"
+                :key="opt.value"
+                class="radio-card"
+                :class="{ 'radio-card--active': form.scope === opt.value }"
+              >
+                <input type="radio" v-model="form.scope" :value="opt.value" :disabled="opt.disabled" />
+                <div class="radio-card__body">
+                  <span class="radio-card__title">{{ opt.label }}</span>
+                  <span class="radio-card__hint">{{ opt.hint }}</span>
+                </div>
+              </label>
+            </div>
+          </div>
 
-      <el-form-item label="分块大小" prop="chunk_size">
-        <el-input-number v-model="form.chunk_size" :min="100" :step="100" />
-        <span class="form-hint">文本切块大小（字符），默认 500</span>
-      </el-form-item>
+          <div v-if="form.scope === 'org'" class="field">
+            <label class="field__label">所属组织</label>
+            <select v-model="form.org_id" class="input" required>
+              <option :value="null" disabled>选择组织</option>
+              <option v-for="org in organizations" :key="org.id" :value="org.id">{{ org.name }}</option>
+            </select>
+            <p v-if="organizations.length === 0" class="field__hint">尚未加入任何组织，请先创建或加入组织</p>
+          </div>
 
-      <el-form-item label="分块重叠" prop="chunk_overlap">
-        <el-input-number v-model="form.chunk_overlap" :min="0" :step="10" />
-        <span class="form-hint">相邻分块重叠长度，默认 50</span>
-      </el-form-item>
-    </el-form>
+          <div class="field-row">
+            <div class="field">
+              <label class="field__label">分块大小</label>
+              <input v-model.number="form.chunk_size" type="number" class="input" min="100" step="100" />
+              <span class="field__hint">默认 500</span>
+            </div>
+            <div class="field">
+              <label class="field__label">分块重叠</label>
+              <input v-model.number="form.chunk_overlap" type="number" class="input" min="0" step="10" />
+              <span class="field__hint">默认 50</span>
+            </div>
+          </div>
 
-    <template #footer>
-      <el-button @click="$emit('update:modelValue', false)">取消</el-button>
-      <el-button type="primary" :loading="submitting" @click="handleSubmit">
-        {{ isEdit ? '保存' : '创建' }}
-      </el-button>
-    </template>
-  </el-dialog>
+          <div v-if="error" class="form-error">{{ error }}</div>
+
+          <footer class="modal__foot">
+            <button type="button" class="btn btn--ghost" @click="$emit('update:modelValue', false)">取消</button>
+            <button type="submit" class="btn btn--primary" :disabled="loading">
+              {{ loading ? '创建中…' : '创建' }}
+            </button>
+          </footer>
+        </form>
+      </div>
+    </div>
+  </transition>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
-import type { FormInstance, FormRules } from 'element-plus'
-import type {
-  KnowledgeBaseCreate,
-  KnowledgeBaseSimple,
-  KnowledgeBaseUpdate,
-  KnowledgeScope,
-  OrganizationOut,
-} from '@/types/knowledge'
+import { onMounted, reactive, ref, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { createKnowledgeBase } from '@/api/knowledge'
+import { fetchOrganizations } from '@/api/organization'
+import { useAuthStore } from '@/stores/auth'
 
-const props = defineProps<{
-  modelValue: boolean
-  /** 编辑对象；为 null 时是创建模式 */
-  kb?: KnowledgeBaseSimple | null
-  organizations: OrganizationOut[]
-  isAdmin: boolean
-  submitting?: boolean
-}>()
+defineProps<{ modelValue: boolean }>()
+const emit = defineEmits<{ 'update:modelValue': [v: boolean] }>()
 
-const emit = defineEmits<{
-  'update:modelValue': [value: boolean]
-  submit: [payload: { id?: number; data: KnowledgeBaseCreate | KnowledgeBaseUpdate }]
-}>()
+const router = useRouter()
+const auth = useAuthStore()
+const firstField = ref<HTMLInputElement | null>(null)
+const organizations = ref<{ id: number; name: string }[]>([])
+const loading = ref(false)
+const error = ref('')
 
-const isEdit = computed(() => !!props.kb)
-
-interface KBForm {
-  name: string
-  description: string
-  scope: KnowledgeScope
-  org_id: number | null
-  chunk_size: number
-  chunk_overlap: number
-}
-
-const formRef = ref<FormInstance>()
-const form = reactive<KBForm>({
+const form = reactive({
   name: '',
   description: '',
-  scope: 'personal',
-  org_id: null,
+  scope: 'personal' as 'personal' | 'org' | 'public',
+  org_id: null as number | null,
   chunk_size: 500,
   chunk_overlap: 50,
 })
 
-const rules: FormRules = {
-  name: [
-    { required: true, message: '请输入知识库名称', trigger: 'blur' },
-    { max: 100, message: '名称不能超过 100 个字符', trigger: 'blur' },
-  ],
-}
+const scopeOptions = computed(() => [
+  { value: 'personal', label: '个人', hint: '仅自己可见', disabled: false },
+  { value: 'org', label: '组织', hint: '组织内成员可见', disabled: organizations.value.length === 0 },
+  { value: 'public', label: '公开', hint: '所有用户可见', disabled: !auth.isAdmin },
+])
 
-// 打开弹窗时用编辑对象初始化表单
-watch(
-  () => [props.modelValue, props.kb] as const,
-  ([open]) => {
-    if (open) {
-      if (props.kb) {
-        form.name = props.kb.name
-        form.description = props.kb.description || ''
-        form.scope = props.kb.scope
-        form.chunk_size = 500
-        form.chunk_overlap = 50
-      } else {
-        form.name = ''
-        form.description = ''
-        form.scope = 'personal'
-        form.org_id = null
-        form.chunk_size = 500
-        form.chunk_overlap = 50
-      }
-    }
+onMounted(async () => {
+  try {
+    const orgs = await fetchOrganizations()
+    organizations.value = orgs
+  } catch {
+    /* ignore */
   }
-)
-
-function handleClosed() {
-  formRef.value?.clearValidate()
-}
+  setTimeout(() => firstField.value?.focus(), 100)
+})
 
 async function handleSubmit() {
-  if (!formRef.value) return
-  const valid = await formRef.value.validate().catch(() => false)
-  if (!valid) return
-
-  if (isEdit.value && props.kb) {
-    const data: KnowledgeBaseUpdate = {
-      name: form.name.trim(),
-      description: form.description.trim() || undefined,
-      chunk_size: form.chunk_size,
-      chunk_overlap: form.chunk_overlap,
-    }
-    emit('submit', { id: props.kb.id, data })
-  } else {
-    const data: KnowledgeBaseCreate = {
+  if (!form.name.trim()) {
+    error.value = '请输入名称'
+    return
+  }
+  if (form.scope === 'org' && !form.org_id) {
+    error.value = '请选择组织'
+    return
+  }
+  error.value = ''
+  loading.value = true
+  try {
+    const kb = await createKnowledgeBase({
       name: form.name.trim(),
       description: form.description.trim() || null,
       scope: form.scope,
+      org_id: form.scope === 'org' ? form.org_id : null,
       chunk_size: form.chunk_size,
       chunk_overlap: form.chunk_overlap,
-      org_id: form.scope === 'org' ? form.org_id : null,
-    }
-    emit('submit', { data })
+    })
+    emit('update:modelValue', false)
+    router.push(`/knowledge/${kb.id}`)
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || '创建失败'
+  } finally {
+    loading.value = false
   }
 }
 </script>
 
-<style scoped>
-.form-hint {
-  font-size: var(--text-xs);
-  color: var(--color-muted-foreground);
-  margin-left: var(--space-3);
-  line-height: 1.5;
+<style lang="scss" scoped>
+@use '@/styles/tokens' as *;
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $s-6;
 }
+
+.modal {
+  width: 100%;
+  max-width: 540px;
+  background: $bg-surface;
+  border: 1px solid $border-strong;
+  border-radius: $r-lg;
+  box-shadow: $shadow-lg;
+  display: flex;
+  flex-direction: column;
+  max-height: 90vh;
+  overflow: hidden;
+
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: $s-5 $s-6 $s-4;
+    border-bottom: 1px solid $border-subtle;
+  }
+  &__title {
+    margin-top: $s-2;
+    font-family: $font-display;
+    font-size: $fs-24;
+    font-weight: $fw-semibold;
+    letter-spacing: -0.01em;
+  }
+
+  &__body {
+    padding: $s-5 $s-6;
+    display: flex;
+    flex-direction: column;
+    gap: $s-4;
+    overflow-y: auto;
+  }
+
+  &__foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: $s-2;
+    padding-top: $s-3;
+    border-top: 1px solid $border-subtle;
+    margin-top: $s-2;
+  }
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: $s-2;
+  position: relative;
+
+  &__label {
+    font-size: $fs-13;
+    font-weight: $fw-medium;
+    color: $text-secondary;
+  }
+  &__hint {
+    font-size: $fs-12;
+    color: $text-tertiary;
+  }
+  &__counter {
+    position: absolute;
+    right: $s-2;
+    bottom: $s-1;
+    font-size: $fs-12;
+  }
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $s-4;
+}
+
+.radio-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: $s-2;
+}
+
+.radio-card {
+  position: relative;
+  padding: $s-3;
+  background: $bg-inset;
+  border: 1px solid $border-subtle;
+  border-radius: $r-md;
+  cursor: pointer;
+  transition: all $dur-base $ease-out;
+
+  input { position: absolute; opacity: 0; pointer-events: none; }
+
+  &:hover { border-color: $border-strong; }
+  &--active {
+    border-color: $accent;
+    background: $accent-soft;
+  }
+
+  &__title {
+    display: block;
+    font-size: $fs-14;
+    font-weight: $fw-medium;
+    color: $text-primary;
+  }
+  &__hint {
+    display: block;
+    font-size: $fs-12;
+    color: $text-tertiary;
+    margin-top: 2px;
+  }
+}
+
+.form-error {
+  padding: $s-3 $s-4;
+  background: $danger-soft;
+  color: $danger;
+  border-radius: $r-md;
+  font-size: $fs-13;
+}
+
+.fade-enter-active, .fade-leave-active { transition: opacity $dur-base $ease-out; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

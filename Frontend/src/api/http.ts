@@ -26,6 +26,10 @@ http.interceptors.request.use(
 http.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Demo 模式下不要因为后端 401 把登录态清掉（demo token 后端不认识）
+    const isDemo = localStorage.getItem('access_token')?.startsWith('demo.')
+    if (isDemo) return Promise.reject(error)
+
     if (error.response) {
       const { status, data } = error.response
       const detail = data?.detail || '请求失败'

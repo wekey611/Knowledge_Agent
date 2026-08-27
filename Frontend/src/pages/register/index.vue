@@ -1,241 +1,224 @@
 <template>
-  <AuthCard title="创建账号">
-    <!-- Loading state -->
-    <EmptyState
-      v-if="loadingToken"
-      type="loading"
-      title="验证邀请链接中..."
-      description="请稍候，正在验证您的邀请链接"
-    />
+  <div class="auth-form">
+    <div class="auth-form__head">
+      <span class="eyebrow">邀请注册</span>
+      <h2 class="auth-form__title">完成账号</h2>
+      <p class="auth-form__sub" v-if="tokenInfo">为 <strong>{{ tokenInfo.email }}</strong> 设置用户名和密码。</p>
+    </div>
 
-    <!-- Token error state -->
-    <EmptyState
-      v-else-if="tokenError"
-      type="error"
-      title="链接无效"
-      :description="tokenError"
-    />
+    <div v-if="loadingToken" class="state-loading">
+      <span class="spinner" />
+      <p class="muted">正在验证邀请链接…</p>
+    </div>
 
-    <!-- Registration form -->
-    <template v-else-if="tokenInfo">
-      <div class="email-display">
-        <el-icon :size="16" color="var(--color-primary)"><Message /></el-icon>
-        <span>{{ tokenInfo.email }}</span>
+    <div v-else-if="tokenError" class="state-error">
+      <div class="state-error__icon">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 8v5M12 16h.01" stroke-linecap="round" />
+        </svg>
+      </div>
+      <h3>链接无效</h3>
+      <p>{{ tokenError }}</p>
+      <router-link to="/auth/request" class="btn btn--ghost">重新申请</router-link>
+    </div>
+
+    <form v-else-if="tokenInfo" @submit.prevent="handleSubmit" class="auth-form__body">
+      <div class="field">
+        <label class="field__label">邮箱</label>
+        <input :value="tokenInfo.email" disabled class="input" />
+      </div>
+      <div class="field">
+        <label class="field__label">用户名</label>
+        <input v-model="form.username" class="input" placeholder="3-32 位字母/数字" required />
+      </div>
+      <div class="field">
+        <label class="field__label">密码</label>
+        <input v-model="form.password" type="password" class="input" placeholder="至少 8 位" required minlength="8" />
+      </div>
+      <div class="field">
+        <label class="field__label">确认密码</label>
+        <input v-model="form.password2" type="password" class="input" required minlength="8" />
       </div>
 
-      <el-form
-        ref="formRef"
-        :model="form"
-        :rules="rules"
-        size="large"
-        class="register-form"
-        @keyup.enter="handleRegister"
-      >
-        <el-form-item prop="username">
-          <template #label>
-            <span class="form-label">用户名</span>
-          </template>
-          <el-input
-            v-model="form.username"
-            placeholder="设置用户名"
-            maxlength="100"
-            show-word-limit
-            :prefix-icon="User"
-          />
-        </el-form-item>
+      <div v-if="error" class="auth-form__error">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01" stroke-linecap="round"/></svg>
+        <span>{{ error }}</span>
+      </div>
 
-        <el-form-item prop="password">
-          <template #label>
-            <span class="form-label">设置密码</span>
-          </template>
-          <el-input
-            v-model="form.password"
-            type="password"
-            placeholder="至少 6 位密码"
-            show-password
-            :prefix-icon="Lock"
-          />
-        </el-form-item>
+      <button class="btn btn--primary btn--lg" :disabled="loading" type="submit">
+        {{ loading ? '注册中…' : '创建账号' }}
+      </button>
+    </form>
 
-        <el-form-item prop="confirmPassword">
-          <template #label>
-            <span class="form-label">确认密码</span>
-          </template>
-          <el-input
-            v-model="form.confirmPassword"
-            type="password"
-            placeholder="再次输入密码"
-            show-password
-            :prefix-icon="Lock"
-          />
-        </el-form-item>
-
-        <el-form-item class="form-submit">
-          <el-button
-            type="primary"
-            :loading="submitting"
-            class="submit-btn"
-            @click="handleRegister"
-          >
-            {{ submitting ? '注册中...' : '注 册' }}
-          </el-button>
-        </el-form-item>
-      </el-form>
-    </template>
-
-    <!-- Success state -->
-    <EmptyState
-      v-if="registered"
-      type="success"
-      title="注册成功！"
-      :description="`欢迎 ${registeredEmail}`"
-      action-label="前往登录"
-      @action="goLogin"
-    />
-  </AuthCard>
+    <div v-else-if="success" class="state-success">
+      <div class="state-success__icon">
+        <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10" />
+          <path d="m8 12 3 3 5-6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      </div>
+      <h3>账号已创建</h3>
+      <p>欢迎加入 · 现在可以登录了。</p>
+      <router-link to="/auth/login" class="btn btn--primary">前往登录</router-link>
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { Message, Lock, User } from '@element-plus/icons-vue'
-import type { FormInstance, FormRules } from 'element-plus'
+import { onMounted, reactive, ref } from 'vue'
+import { useRoute } from 'vue-router'
+import { inviteInfo, register } from '@/api/auth'
 import type { InviteTokenInfo } from '@/types/api'
-import { getInviteInfo, completeRegister } from '@/api/user'
-import AuthCard from '@/components/auth/AuthCard.vue'
-import EmptyState from '@/components/common/EmptyState.vue'
 
-const router = useRouter()
-const formRef = ref<FormInstance>()
+const route = useRoute()
+const token = (route.query.token as string) || ''
+
+const tokenInfo = ref<InviteTokenInfo | null>(null)
 const loadingToken = ref(true)
 const tokenError = ref('')
-const tokenInfo = ref<InviteTokenInfo | null>(null)
-const submitting = ref(false)
-const registered = ref(false)
-const registeredEmail = ref('')
-
-const form = reactive({
-  username: '',
-  password: '',
-  confirmPassword: '',
-})
-
-const rules: FormRules = {
-  username: [
-    { required: true, message: '请设置用户名', trigger: 'blur' },
-    { max: 100, message: '用户名不能超过 100 个字符', trigger: 'blur' },
-  ],
-  password: [
-    { required: true, message: '请设置密码', trigger: 'blur' },
-    { min: 6, message: '密码至少 6 位', trigger: 'blur' },
-  ],
-  confirmPassword: [
-    { required: true, message: '请再次输入密码', trigger: 'blur' },
-    {
-      validator: (_rule, value, callback) => {
-        if (value !== form.password) {
-          callback(new Error('两次输入的密码不一致'))
-        } else {
-          callback()
-        }
-      },
-      trigger: 'blur',
-    },
-  ],
-}
+const form = reactive({ username: '', password: '', password2: '' })
+const error = ref('')
+const loading = ref(false)
+const success = ref(false)
 
 onMounted(async () => {
-  const params = new URLSearchParams(window.location.search)
-  const token = params.get('token') || getHashToken()
-
   if (!token) {
-    tokenError.value = '无效的链接：缺少 token 参数'
+    tokenError.value = '邀请链接缺失 token 参数'
     loadingToken.value = false
     return
   }
-
   try {
-    const info = await getInviteInfo(token)
-    tokenInfo.value = info
-
-    if (info.expired) {
-      tokenError.value = '该链接已过期，请联系管理员重新发送'
-    } else if (info.used) {
-      tokenError.value = '该链接已被使用'
-    }
-  } catch {
-    tokenError.value = '无效的链接或网络错误'
+    tokenInfo.value = await inviteInfo(token)
+    if (tokenInfo.value.used) tokenError.value = '该邀请链接已被使用'
+    else if (tokenInfo.value.expired) tokenError.value = '该邀请链接已过期'
+  } catch (e: any) {
+    tokenError.value = e?.response?.data?.detail || '邀请链接无效'
   } finally {
     loadingToken.value = false
   }
 })
 
-function getHashToken(): string | null {
-  const hash = window.location.hash
-  const match = hash.match(/[?&]token=([^&]+)/)
-  return match ? decodeURIComponent(match[1]) : null
-}
-
-async function handleRegister() {
-  if (tokenError.value || !tokenInfo.value) return
-
-  const valid = await formRef.value?.validate().catch(() => false)
-  if (!valid) return
-
-  const params = new URLSearchParams(window.location.search)
-  const token = params.get('token') || getHashToken()
-  if (!token) return
-
-  submitting.value = true
-  try {
-    const res = await completeRegister({ token, username: form.username, password: form.password })
-    registered.value = true
-    registeredEmail.value = res.email
-    ElMessage.success('注册成功')
-  } catch {
-    // Error handled by interceptor
-  } finally {
-    submitting.value = false
+async function handleSubmit() {
+  if (!form.username || !form.password) return
+  if (form.password !== form.password2) {
+    error.value = '两次输入的密码不一致'
+    return
   }
-}
-
-function goLogin() {
-  router.push('/auth/login')
+  error.value = ''
+  loading.value = true
+  try {
+    await register({ token, username: form.username, password: form.password })
+    success.value = true
+  } catch (e: any) {
+    error.value = e?.response?.data?.detail || '注册失败，请稍后再试'
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 
-<style scoped>
-.register-form {
+<style lang="scss" scoped>
+@use '@/styles/tokens' as *;
+
+.auth-form {
   width: 100%;
+  max-width: 380px;
+
+  &__head { margin-bottom: $s-8; }
+  &__title {
+    margin-top: $s-3;
+    font-family: $font-display;
+    font-size: $fs-32;
+    font-weight: $fw-semibold;
+    letter-spacing: -0.015em;
+    line-height: 1.1;
+  }
+  &__sub {
+    margin-top: $s-2;
+    color: $text-secondary;
+    font-size: $fs-14;
+    line-height: $lh-snug;
+    strong { color: $accent; font-weight: $fw-medium; }
+  }
+
+  &__body { display: flex; flex-direction: column; gap: $s-4; }
+  &__error {
+    display: flex;
+    align-items: center;
+    gap: $s-2;
+    padding: $s-3 $s-4;
+    border-radius: $r-md;
+    background: $danger-soft;
+    color: $danger;
+    font-size: $fs-13;
+    border: 1px solid rgba(229, 72, 77, 0.3);
+  }
 }
 
-.form-label {
-  font-weight: 500;
-  font-size: var(--text-sm);
-  color: var(--color-foreground);
-}
-
-.email-display {
+.field {
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
-  padding: var(--space-4) var(--space-5);
-  background: var(--color-primary-bg);
-  border: 1px solid var(--color-primary-light);
-  border-radius: var(--radius-md);
-  color: var(--color-primary);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  margin-bottom: var(--space-7);
+  flex-direction: column;
+  gap: $s-2;
+  &__label {
+    font-size: $fs-13;
+    font-weight: $fw-medium;
+    color: $text-secondary;
+  }
 }
 
-.submit-btn {
-  width: 100%;
-  height: 44px;
-  font-size: var(--text-base);
-  font-weight: 600;
-  border-radius: var(--radius-md);
-  margin-top: var(--space-2);
+.state-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $s-3;
+  padding: $s-8 0;
+
+  .spinner {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid $border-subtle;
+    border-top-color: $accent;
+    animation: spin 800ms linear infinite;
+  }
 }
+
+.state-error, .state-success {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: $s-3;
+
+  h3 {
+    font-family: $font-display;
+    font-size: $fs-24;
+    font-weight: $fw-semibold;
+  }
+  p {
+    color: $text-secondary;
+    font-size: $fs-14;
+    line-height: $lh-normal;
+  }
+}
+
+.state-error__icon {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: $danger-soft;
+  color: $danger;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: $s-2;
+}
+.state-success__icon {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  background: $success-soft;
+  color: $success;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: $s-2;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

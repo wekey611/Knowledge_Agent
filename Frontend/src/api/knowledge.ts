@@ -9,14 +9,42 @@ import type {
   KnowledgeBaseUpdate,
 } from '@/types/knowledge'
 
+/** Demo 模式：从 localStorage 注入 mock 数据 */
+function isDemo() {
+  return (localStorage.getItem('access_token') || '').startsWith('demo.')
+}
+
+function mockKbList(): KnowledgeBaseList {
+  const raw = localStorage.getItem('demo_kbs')
+  if (!raw) return { total: 0, data: [] }
+  return { total: 0, data: JSON.parse(raw) as any }
+}
+
+function mockKb(id: number): KnowledgeBase {
+  const list = mockKbList().data
+  const k = list.find((x) => x.id === id)
+  return {
+    ...(k as any),
+    chunk_size: 500,
+    chunk_overlap: 50,
+    chunk_count: (k?.document_count ?? 0) * 47,
+    owner_id: 1,
+    org_id: null,
+    organization: null,
+    updated_at: k?.created_at ?? new Date().toISOString(),
+  } as KnowledgeBase
+}
+
 /** 知识库列表（GET /knowledge-bases） */
 export async function fetchKnowledgeBases(): Promise<KnowledgeBaseList> {
+  if (isDemo()) return mockKbList()
   const res = await http.get<KnowledgeBaseList>('/knowledge-bases')
   return res.data
 }
 
 /** 知识库详情（GET /knowledge-bases/{id}） */
 export async function fetchKnowledgeBase(id: number): Promise<KnowledgeBase> {
+  if (isDemo()) return mockKb(id)
   const res = await http.get<KnowledgeBase>(`/knowledge-bases/${id}`)
   return res.data
 }

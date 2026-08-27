@@ -68,23 +68,27 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'knowledge',
         meta: { requiresAuth: true },
-        redirect: '/dashboard',
+        component: () => import('@/pages/knowledge/index.vue'),
+      },
+      {
+        path: 'knowledge/:id',
+        component: () => import('@/layouts/KnowledgeLayout.vue'),
+        meta: { requiresAuth: true },
         children: [
           {
-            path: ':id',
-            component: () => import('@/layouts/KnowledgeLayout.vue'),
-            children: [
-              {
-                path: '',
-                name: 'KnowledgeChat',
-                component: () => import('@/pages/knowledge/[id]/index.vue'),
-              },
-              {
-                path: 'documents',
-                name: 'KnowledgeDocuments',
-                component: () => import('@/pages/knowledge/[id]/documents.vue'),
-              },
-            ],
+            path: '',
+            name: 'KnowledgeChat',
+            component: () => import('@/pages/knowledge/[id]/index.vue'),
+          },
+          {
+            path: 'documents',
+            name: 'KnowledgeDocuments',
+            component: () => import('@/pages/knowledge/[id]/documents.vue'),
+          },
+          {
+            path: 'settings',
+            name: 'KnowledgeSettings',
+            component: () => import('@/pages/knowledge/[id]/settings.vue'),
           },
         ],
       },

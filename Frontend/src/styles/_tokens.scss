@@ -1,0 +1,97 @@
+// ==========================================================================
+// Design Tokens — Knowledge Agent
+// ==========================================================================
+
+// ── Color: Background ────────────────────────────────────────────
+$bg-canvas:     #0E0F13;
+$bg-surface:    #16181F;
+$bg-elevated:   #1C1F27;
+$bg-inset:      #0A0B0F;
+
+// ── Color: Border ────────────────────────────────────────────────
+$border-subtle: rgba(255, 255, 255, 0.06);
+$border-strong: rgba(255, 255, 255, 0.12);
+$border-focus:  #A8E6CF;
+
+// ── Color: Text ──────────────────────────────────────────────────
+$text-primary:   #E8EAED;
+$text-secondary: #9AA0A6;
+$text-tertiary:  #5F6368;
+$text-inverse:   #0E0F13;
+
+// ── Color: Accent ────────────────────────────────────────────────
+$accent:        #A8E6CF;
+$accent-hover:  #C4F0DC;
+$accent-press:  #8DD8BC;
+$accent-soft:   rgba(168, 230, 207, 0.12);
+
+// ── Color: Semantic ──────────────────────────────────────────────
+$danger:        #E5484D;
+$danger-soft:   rgba(229, 72, 77, 0.12);
+$warning:       #F5A623;
+$warning-soft:  rgba(245, 166, 35, 0.12);
+$success:       #46B17E;
+$success-soft:  rgba(70, 177, 126, 0.12);
+$info:          #6B9DD9;
+$info-soft:     rgba(107, 157, 217, 0.12);
+
+// ── Typography ───────────────────────────────────────────────────
+$font-display: 'Fraunces', Georgia, serif;
+$font-body:    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+$font-mono:    'JetBrains Mono', 'Fira Code', Consolas, monospace;
+
+$fs-12: 0.75rem;
+$fs-13: 0.8125rem;
+$fs-14: 0.875rem;
+$fs-15: 0.9375rem;
+$fs-17: 1.0625rem;
+$fs-20: 1.25rem;
+$fs-24: 1.5rem;
+$fs-32: 2rem;
+$fs-44: 2.75rem;
+
+$lh-tight:  1.2;
+$lh-snug:   1.4;
+$lh-normal: 1.55;
+$lh-loose:  1.7;
+
+$fw-regular:  400;
+$fw-medium:   500;
+$fw-semibold: 600;
+$fw-bold:     700;
+
+// ── Spacing ──────────────────────────────────────────────────────
+$s-1:  4px;
+$s-2:  8px;
+$s-3:  12px;
+$s-4:  16px;
+$s-5:  20px;
+$s-6:  24px;
+$s-8:  32px;
+$s-10: 40px;
+$s-14: 56px;
+$s-20: 80px;
+
+// ── Radius ───────────────────────────────────────────────────────
+$r-sm:   6px;
+$r-md:   10px;
+$r-lg:   14px;
+$r-xl:   20px;
+$r-pill: 999px;
+
+// ── Shadow ───────────────────────────────────────────────────────
+$shadow-sm:  0 1px 0 rgba(255, 255, 255, 0.04), 0 2px 4px rgba(0, 0, 0, 0.3);
+$shadow-md:  0 1px 0 rgba(255, 255, 255, 0.04), 0 8px 16px rgba(0, 0, 0, 0.35);
+$shadow-lg:  0 1px 0 rgba(255, 255, 255, 0.04), 0 16px 32px rgba(0, 0, 0, 0.45);
+
+// ── Motion ───────────────────────────────────────────────────────
+$ease-out:  cubic-bezier(0.16, 1, 0.3, 1);
+$ease-in:   cubic-bezier(0.4, 0, 1, 1);
+$dur-fast:   120ms;
+$dur-base:   180ms;
+$dur-slow:   280ms;
+
+// ── Layout ───────────────────────────────────────────────────────
+$sidebar-w:    240px;
+$topbar-h:     56px;
+$content-max:  1280px;

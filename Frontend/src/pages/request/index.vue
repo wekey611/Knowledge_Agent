@@ -1,129 +1,78 @@
 <template>
-  <AuthCard title="注册申请" subtitle="提交申请后等待管理员审核，审核通过后将发送邀请邮件到您的邮箱">
-    <el-form
-      ref="formRef"
-      :model="form"
-      :rules="rules"
-      size="large"
-      class="request-form"
-      @keyup.enter="handleSubmit"
-    >
-      <el-form-item prop="email">
-        <template #label>
-          <span class="form-label">邮箱</span>
-        </template>
-        <el-input
-          v-model="form.email"
-          placeholder="请输入您的邮箱"
-          :prefix-icon="Message"
-        />
-      </el-form-item>
+  <div class="my-request-page">
+    <header class="my-request-page__head">
+      <div>
+        <span class="eyebrow">申请</span>
+        <h1 class="display-2 my-request-page__title">我的申请</h1>
+        <p class="my-request-page__lede">查看你提交的账号申请记录与状态。</p>
+      </div>
+    </header>
 
-      <el-form-item prop="reason">
-        <template #label>
-          <span class="form-label">申请理由</span>
-        </template>
-        <el-input
-          v-model="form.reason"
-          type="textarea"
-          :rows="4"
-          placeholder="请简要说明使用本系统的目的"
-          maxlength="1000"
-          show-word-limit
-        />
-      </el-form-item>
-
-      <el-form-item class="form-submit">
-        <el-button
-          type="primary"
-          :loading="loading"
-          class="submit-btn"
-          @click="handleSubmit"
-        >
-          {{ loading ? '提交中...' : '提交申请' }}
-        </el-button>
-      </el-form-item>
-    </el-form>
-
-    <template #footer>
-      <span class="footer-text">已有账号？</span>
-      <router-link to="/auth/login" class="footer-link">去登录</router-link>
-    </template>
-  </AuthCard>
+    <div class="info-card">
+      <div class="info-card__icon">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 8v5M12 16h.01" stroke-linecap="round" />
+        </svg>
+      </div>
+      <div class="info-card__text">
+        <h3>功能即将上线</h3>
+        <p>查看个人申请记录的接口正在后端开发中。管理员可在「审核」页面处理待审申请。</p>
+      </div>
+    </div>
+  </div>
 </template>
 
-<script setup lang="ts">
-import { ref, reactive } from 'vue'
-import { ElMessage } from 'element-plus'
-import { Message } from '@element-plus/icons-vue'
-import type { FormInstance, FormRules } from 'element-plus'
-import { submitRequest } from '@/api/user'
-import AuthCard from '@/components/auth/AuthCard.vue'
+<style lang="scss" scoped>
+@use '@/styles/tokens' as *;
 
-const formRef = ref<FormInstance>()
-const loading = ref(false)
-
-const form = reactive({
-  email: '',
-  reason: '',
-})
-
-const rules: FormRules = {
-  email: [
-    { required: true, message: '请输入邮箱', trigger: 'blur' },
-    { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' },
-  ],
-  reason: [
-    { required: true, message: '请输入申请理由', trigger: 'blur' },
-    { min: 2, message: '理由至少 2 个字', trigger: 'blur' },
-  ],
-}
-
-async function handleSubmit() {
-  const valid = await formRef.value?.validate().catch(() => false)
-  if (!valid) return
-
-  loading.value = true
-  try {
-    await submitRequest({ email: form.email, reason: form.reason })
-    ElMessage.success('申请已提交，请等待管理员审核')
-    form.email = ''
-    form.reason = ''
-  } catch {
-    // Error handled by interceptor
-  } finally {
-    loading.value = false
+.my-request-page {
+  &__head {
+    margin-bottom: $s-6;
+    padding-bottom: $s-6;
+    border-bottom: 1px solid $border-subtle;
+  }
+  &__title { margin-top: $s-3; }
+  &__lede {
+    margin-top: $s-3;
+    color: $text-secondary;
+    font-size: $fs-15;
+    max-width: 460px;
   }
 }
-</script>
 
-<style scoped>
-.request-form {
-  width: 100%;
-}
+.info-card {
+  display: flex;
+  align-items: flex-start;
+  gap: $s-3;
+  padding: $s-5;
+  background: $bg-surface;
+  border: 1px solid $border-subtle;
+  border-radius: $r-lg;
 
-.form-label {
-  font-weight: 500;
-  font-size: var(--text-sm);
-  color: var(--color-foreground);
-}
-
-.submit-btn {
-  width: 100%;
-  height: 44px;
-  font-size: var(--text-base);
-  font-weight: 600;
-  border-radius: var(--radius-md);
-  margin-top: var(--space-2);
-}
-
-.footer-text {
-  font-size: var(--text-sm);
-  color: var(--color-muted-foreground);
-}
-
-.footer-link {
-  font-size: var(--text-sm);
-  font-weight: 500;
+  &__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: $r-md;
+    background: $info-soft;
+    color: $info;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+  &__text {
+    h3 {
+      font-family: $font-body;
+      font-weight: $fw-semibold;
+      font-size: $fs-15;
+      margin-bottom: $s-1;
+    }
+    p {
+      color: $text-secondary;
+      font-size: $fs-13;
+      line-height: $lh-snug;
+    }
+  }
 }
 </style>

@@ -1,65 +1,54 @@
 <template>
-  <div class="app-logo" @click="$router.push('/dashboard')">
-    <div class="logo-icon">
-      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="28" height="28" rx="8" fill="url(#logo-gradient)" />
-        <path
-          d="M14 6C9.58 6 6 9.58 6 14s3.58 8 8 8 8-3.58 8-8-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6s2.69-6 6-6 6 2.69 6 6-2.69 6-6 6z"
-          fill="white"
-          opacity="0.9"
-        />
-        <path
-          d="M14 9c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-2.21 0-4 1.79-4 4h8c0-2.21-1.79-4-4-4z"
-          fill="white"
-        />
-        <defs>
-          <linearGradient id="logo-gradient" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-            <stop class="grad-stop-start" />
-            <stop class="grad-stop-end" offset="1" />
-          </linearGradient>
-        </defs>
-      </svg>
-    </div>
-    <span v-if="showText" class="logo-text">Knowledge Agent</span>
+  <div class="logo-mark" :class="{ 'logo-mark--lg': size === 'lg' }">
+    <svg viewBox="0 0 32 32" width="100%" height="100%" fill="none">
+      <rect x="2" y="2" width="28" height="28" rx="7" fill="#16181F" stroke="rgba(255,255,255,0.08)" />
+      <path d="M9 8h7a5 5 0 0 1 5 5v6a5 5 0 0 1-5 5H9z" stroke="#A8E6CF" stroke-width="1.5" />
+      <path d="M13 13h2M13 17h6M13 21h4" stroke="#A8E6CF" stroke-width="1.5" stroke-linecap="round" />
+    </svg>
+    <span v-if="withText" class="logo-mark__text">
+      <span class="logo-mark__brand">Knowledge</span><span class="logo-mark__brand-accent">·</span><span class="logo-mark__brand">Agent</span>
+    </span>
   </div>
 </template>
 
 <script setup lang="ts">
-withDefaults(defineProps<{
-  showText?: boolean
-}>(), {
-  showText: true,
+withDefaults(defineProps<{ size?: 'md' | 'lg'; withText?: boolean }>(), {
+  size: 'md',
+  withText: true,
 })
 </script>
 
-<style scoped>
-.app-logo {
-  display: flex;
+<style lang="scss" scoped>
+@use '@/styles/tokens' as *;
+
+.logo-mark {
+  display: inline-flex;
   align-items: center;
-  gap: var(--space-4);
-  cursor: pointer;
-  user-select: none;
-}
+  gap: $s-2;
 
-.logo-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
+  svg {
+    width: 24px;
+    height: 24px;
+  }
 
-.logo-text {
-  font-family: var(--font-heading);
-  font-size: var(--text-lg);
-  font-weight: 700;
-  white-space: nowrap;
-  background: var(--gradient-accent);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
+  &--lg svg {
+    width: 36px;
+    height: 36px;
+  }
 
-/* SVG gradient colors — controlled via CSS vars */
-.grad-stop-start { stop-color: var(--color-primary); }
-.grad-stop-end { stop-color: var(--color-accent); }
+  &__text {
+    display: inline-flex;
+    align-items: baseline;
+    font-family: $font-display;
+    font-size: $fs-17;
+    font-weight: $fw-semibold;
+    letter-spacing: -0.01em;
+    color: $text-primary;
+  }
+  &__brand-accent {
+    color: $accent;
+    margin: 0 2px;
+    font-weight: $fw-regular;
+  }
+}
 </style>

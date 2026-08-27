@@ -1,65 +1,232 @@
-// ========================================
-// Global Styles
-// ========================================
-@use './variables.scss';
-@use './dark.scss';
+@use './tokens' as *;
 
-*,
-*::before,
-*::after {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
+/* ── Fonts: Fraunces (display) + Inter (body) + JetBrains Mono ───── */
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
 
-html,
-body,
-#app {
-  height: 100%;
-  width: 100%;
-}
-
+/* ── Reset ───────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #app { height: 100%; }
 body {
-  font-family: var(--font-body);
-  font-size: var(--text-base);
-  background-color: var(--color-bg);
-  color: var(--color-foreground);
+  margin: 0;
+  font-family: $font-body;
+  font-size: $fs-14;
+  line-height: $lh-normal;
+  color: $text-primary;
+  background: $bg-canvas;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  line-height: 1.6;
-  transition:
-    background-color var(--transition-normal),
-    color var(--transition-normal);
+  text-rendering: optimizeLegibility;
 }
+h1, h2, h3, h4, h5, h6 { margin: 0; font-weight: $fw-semibold; }
+p { margin: 0; }
+a { color: inherit; text-decoration: none; }
+button { font-family: inherit; }
+::selection { background: $accent-soft; color: $accent-hover; }
 
-a {
-  text-decoration: none;
-  color: var(--color-primary);
-  transition: color var(--transition-fast);
-}
-
-a:hover {
-  color: var(--color-primary-hover);
-}
-
-// Scrollbar
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
+/* ── Scrollbar ──────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: var(--color-border);
-  border-radius: var(--radius-full);
+  background: rgba(255,255,255,0.06);
+  border-radius: $r-pill;
+  &:hover { background: rgba(255,255,255,0.12); }
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-secondary);
+/* ── Display typography ────────────────────────────────────────── */
+.display-1 {
+  font-family: $font-display;
+  font-weight: $fw-semibold;
+  font-size: $fs-44;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  font-variation-settings: "opsz" 144;
+}
+.display-2 {
+  font-family: $font-display;
+  font-weight: $fw-semibold;
+  font-size: $fs-32;
+  line-height: 1.1;
+  letter-spacing: -0.015em;
+}
+.heading {
+  font-family: $font-body;
+  font-weight: $fw-semibold;
+  font-size: $fs-20;
+  line-height: 1.3;
+}
+.eyebrow {
+  font-family: $font-mono;
+  font-size: $fs-12;
+  font-weight: $fw-medium;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: $text-tertiary;
+}
+.mono {
+  font-family: $font-mono;
+  font-feature-settings: "tnum";
 }
 
-// Font loading — display: swap prevents FOIT
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@500;600;700&display=swap');
+/* ── Utility ────────────────────────────────────────────────────── */
+.muted { color: $text-secondary; }
+.faint { color: $text-tertiary; }
+.accent-text { color: $accent; }
+
+/* ── Buttons (custom; Element Plus still available when needed) ── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $s-2;
+  height: 36px;
+  padding: 0 $s-4;
+  border-radius: $r-md;
+  font-size: $fs-14;
+  font-weight: $fw-medium;
+  border: 1px solid transparent;
+  background: transparent;
+  color: $text-primary;
+  cursor: pointer;
+  transition: background $dur-base $ease-out, border-color $dur-base $ease-out, color $dur-base $ease-out;
+  white-space: nowrap;
+  user-select: none;
+  &:focus-visible { outline: 2px solid $accent; outline-offset: 2px; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+.btn--primary {
+  background: $accent;
+  color: $text-inverse;
+  border-color: $accent;
+  &:hover:not(:disabled) { background: $accent-hover; border-color: $accent-hover; }
+  &:active:not(:disabled) { background: $accent-press; }
+}
+.btn--ghost {
+  background: transparent;
+  color: $text-secondary;
+  border-color: $border-subtle;
+  &:hover:not(:disabled) { background: $bg-elevated; color: $text-primary; border-color: $border-strong; }
+}
+.btn--danger {
+  background: $danger-soft;
+  color: $danger;
+  border-color: rgba(229, 72, 77, 0.3);
+  &:hover:not(:disabled) { background: $danger; color: #fff; border-color: $danger; }
+}
+.btn--sm { height: 28px; padding: 0 $s-3; font-size: $fs-13; }
+.btn--lg { height: 44px; padding: 0 $s-5; font-size: $fs-15; }
+.btn--icon { width: 36px; padding: 0; }
+.btn--icon.btn--sm { width: 28px; }
+
+/* ── Input ──────────────────────────────────────────────────────── */
+.input,
+.textarea {
+  width: 100%;
+  font-family: inherit;
+  font-size: $fs-14;
+  color: $text-primary;
+  background: $bg-inset;
+  border: 1px solid $border-subtle;
+  border-radius: $r-md;
+  padding: 10px $s-4;
+  outline: none;
+  transition: border-color $dur-base $ease-out, background $dur-base $ease-out;
+  &::placeholder { color: $text-tertiary; }
+  &:hover { border-color: $border-strong; }
+  &:focus { border-color: $accent; background: $bg-canvas; }
+}
+.textarea { resize: vertical; min-height: 88px; line-height: $lh-normal; }
+
+/* ── Card ───────────────────────────────────────────────────────── */
+.card {
+  background: $bg-surface;
+  border: 1px solid $border-subtle;
+  border-radius: $r-lg;
+  padding: $s-6;
+}
+.card--flat { background: transparent; }
+
+/* ── Divider ────────────────────────────────────────────────────── */
+.divider {
+  height: 1px;
+  background: $border-subtle;
+  border: none;
+  margin: $s-6 0;
+}
+
+/* ── Badge / Tag ────────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: $s-1;
+  height: 22px;
+  padding: 0 $s-2;
+  border-radius: $r-sm;
+  font-size: $fs-12;
+  font-weight: $fw-medium;
+  background: $bg-elevated;
+  color: $text-secondary;
+  border: 1px solid $border-subtle;
+}
+.badge--accent  { background: $accent-soft;   color: $accent;   border-color: rgba(168,230,207,0.25); }
+.badge--danger  { background: $danger-soft;   color: $danger;   border-color: rgba(229,72,77,0.25); }
+.badge--warning { background: $warning-soft;  color: $warning;  border-color: rgba(245,166,35,0.25); }
+.badge--success { background: $success-soft;  color: $success;  border-color: rgba(70,177,126,0.25); }
+.badge--info    { background: $info-soft;     color: $info;     border-color: rgba(107,157,217,0.25); }
+
+.badge .dot {
+  width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+}
+
+/* ── Status dot (live indicator) ───────────────────────────────── */
+.status-dot {
+  display: inline-block;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: $text-tertiary;
+}
+.status-dot--active    { background: $success; box-shadow: 0 0 0 3px $success-soft; }
+.status-dot--provision { background: $warning; animation: pulse 2s $ease-out infinite; }
+.status-dot--failed    { background: $danger; }
+.status-dot--archived  { background: $text-tertiary; }
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 $warning-soft; }
+  50% { box-shadow: 0 0 0 6px transparent; }
+}
+
+/* ── Page enter ─────────────────────────────────────────────────── */
+.page-enter-active {
+  animation: pageIn 280ms $ease-out both;
+}
+@keyframes pageIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Element Plus dark override (keep critical ones dark, not light) ── */
+.el-popper, .el-select__popper, .el-dropdown-menu {
+  background: $bg-elevated !important;
+  border: 1px solid $border-strong !important;
+  color: $text-primary !important;
+}
+.el-select-dropdown__item {
+  color: $text-primary !important;
+  &:hover { background: $bg-surface !important; }
+  &.is-selected { color: $accent !important; }
+}
+.el-message {
+  background: $bg-elevated !important;
+  border: 1px solid $border-strong !important;
+  color: $text-primary !important;
+}
+.el-message__content { color: $text-primary !important; }
+.el-loading-mask { background-color: rgba(14, 15, 19, 0.85) !important; }
+.el-loading-spinner .path { stroke: $accent !important; }
+.el-tooltip__popper {
+  background: $bg-elevated !important;
+  color: $text-primary !important;
+  border: 1px solid $border-strong !important;
+}
+.el-tooltip__popper .el-popper__arrow::before {
+  background: $bg-elevated !important;
+  border: 1px solid $border-strong !important;
+}

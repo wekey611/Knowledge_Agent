@@ -4,6 +4,16 @@
 import http from './http'
 import type { DocumentDetail, DocumentList, DocumentSimple } from '@/types/knowledge'
 
+function isDemo() {
+  return (localStorage.getItem('access_token') || '').startsWith('demo.')
+}
+
+function mockDocs(): DocumentList {
+  const raw = localStorage.getItem('demo_docs')
+  if (!raw) return { total: 0, data: [] }
+  return { total: 0, data: JSON.parse(raw) as any }
+}
+
 /** 上传文档（POST /knowledge-bases/{kb_id}/documents，multipart） */
 export async function uploadDocument(kbId: number, file: File): Promise<DocumentSimple> {
   const formData = new FormData()
@@ -16,6 +26,7 @@ export async function uploadDocument(kbId: number, file: File): Promise<Document
 
 /** 文档列表（GET /knowledge-bases/{kb_id}/documents） */
 export async function fetchDocuments(kbId: number): Promise<DocumentList> {
+  if (isDemo()) return mockDocs()
   const res = await http.get<DocumentList>(`/knowledge-bases/${kbId}/documents`)
   return res.data
 }

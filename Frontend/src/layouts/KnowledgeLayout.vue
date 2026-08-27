@@ -1,351 +1,221 @@
 <template>
-  <div class="knowledge-layout">
-    <!-- Left: Document sidebar -->
-    <KnowledgeSidebar
-      :knowledge-base="knowledgeBase"
-      :documents="documents"
-      :loading="docsLoading"
-      :active-doc-id="activeDocId"
-      @select-doc="selectDoc"
-    />
+  <div class="kb-layout">
+    <div class="kb-layout__topbar">
+      <button class="back-btn" @click="$router.push('/knowledge')">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6">
+          <path d="m15 6-6 6 6 6" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+        <span>知识库</span>
+      </button>
 
-    <!-- Center: Chat area -->
-    <div class="chat-area">
-      <router-view
-        :knowledge-base="knowledgeBase"
-        :kb-loading="kbLoading"
-        :can-manage="canManage"
-        :messages="messages"
-        :messages-loading="msgsLoading"
-        :sending="sending"
-        :error="chatError"
-        @send="handleSend"
-        @load-messages="loadMessages"
-        @retry-message="handleRetry"
-        @suggest="handleSuggest"
-        @documents-changed="reloadDocuments"
-      />
+      <div class="kb-layout__title-block">
+        <h1 class="kb-layout__title">{{ kbName || '知识库' }}</h1>
+        <span class="kb-layout__id mono">#{{ kbId }}</span>
+      </div>
+
+      <div class="kb-layout__tabs">
+        <router-link
+          v-for="tab in tabs"
+          :key="tab.path"
+          :to="tab.path"
+          custom
+          v-slot="{ navigate, isActive }"
+        >
+          <button
+            class="tab-item"
+            :class="{ 'tab-item--active': isActive }"
+            @click="navigate"
+          >
+            <component :is="tab.icon" />
+            <span>{{ tab.label }}</span>
+          </button>
+        </router-link>
+      </div>
+
+      <div class="kb-layout__right">
+        <span v-if="kbScope" class="badge" :class="`badge--${scopeVariant(kbScope)}`">
+          <span class="dot" /> {{ SCOPE_LABELS[kbScope] }}
+        </span>
+        <span v-if="kbStatus" class="kb-layout__status">
+          <StatusDot :status="kbStatus" />
+          <span class="muted">{{ KB_STATUS_LABELS[kbStatus] }}</span>
+        </span>
+      </div>
     </div>
 
-    <!-- Right: Context panel (preview selected doc) -->
-    <div v-if="activeDocId" class="context-panel">
-      <div class="context-header">
-        <h4 class="context-title">文档预览</h4>
-        <button class="context-close" @click="activeDocId = null">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
-      </div>
-      <div class="context-body">
-        <EmptyState
-          v-if="!activeDoc"
-          type="empty"
-          title="选择文档"
-          description="从左侧选择一个文档以预览"
-        />
-        <div v-else class="doc-preview">
-          <div class="doc-preview-header">
-            <el-tag size="small">{{ fileExt(activeDoc.filename) }}</el-tag>
-            <span class="doc-size">{{ formatSize(activeDoc.file_size) }}</span>
-          </div>
-          <p class="doc-preview-title">{{ activeDoc.filename }}</p>
-          <p class="doc-preview-meta">
-            更新于 {{ formatDate(activeDoc.updated_at) }}
-          </p>
-
-          <!-- Preview loading -->
-          <div v-if="previewLoading" class="preview-loading">
-            <el-skeleton animated :rows="8" />
-          </div>
-
-          <!-- Preview error -->
-          <EmptyState
-            v-else-if="previewError"
-            type="error"
-            title="预览失败"
-            :description="previewError"
-          />
-
-          <!-- Unsupported type -->
-          <EmptyState
-            v-else-if="!previewable"
-            type="empty"
-            title="暂不支持预览"
-            description="该文件类型暂不支持在线预览，可下载查看"
-          />
-
-          <!-- Preview iframe -->
-          <iframe v-else-if="previewUrl" :src="previewUrl" class="preview-frame" />
-        </div>
-      </div>
+    <div class="kb-layout__body">
+      <router-view v-slot="{ Component }">
+        <transition name="fade" mode="out-in">
+          <component :is="Component" :kb-id="kbId" :can-manage="canManage" />
+        </transition>
+      </router-view>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onUnmounted } from 'vue'
+import { computed, h, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import type { KnowledgeBaseSimple, DocumentSimple, ChatMessage } from '@/types/knowledge'
+import StatusDot from '@/components/common/StatusDot.vue'
+import { fetchKnowledgeBase } from '@/api/knowledge'
 import { useAuthStore } from '@/stores/auth'
-import { useKnowledgeStore } from '@/stores/knowledge'
-import { useChatStore } from '@/stores/chat'
-import { fetchDocuments as fetchDocumentList, isPreviewable, previewDocument } from '@/api/document'
-import KnowledgeSidebar from '@/components/knowledge/KnowledgeSidebar.vue'
-import EmptyState from '@/components/common/EmptyState.vue'
+import { KB_STATUS_LABELS, SCOPE_LABELS } from '@/types/knowledge'
+import type { KnowledgeBase, KnowledgeScope } from '@/types/knowledge'
 
 const route = useRoute()
-const authStore = useAuthStore()
-const knowledgeStore = useKnowledgeStore()
-const chatStore = useChatStore()
+const auth = useAuthStore()
+const kbId = computed(() => Number(route.params.id))
+const kb = ref<KnowledgeBase | null>(null)
 
-const kbId = computed(() => parseInt(route.params.id as string))
-const kbLoading = ref(false)
-const docsLoading = ref(false)
-const documents = ref<DocumentSimple[]>([])
-const activeDocId = ref<number | null>(null)
-/** KB 创建者 id（从详情接口获取，用于前端权限控制） */
-const kbOwnerId = ref<number | null>(null)
-
-const canManage = computed(
-  () => kbOwnerId.value !== null && kbOwnerId.value === authStore.user?.id
-)
-
-const knowledgeBase = computed<KnowledgeBaseSimple | null>(() => {
-  return knowledgeStore.getKnowledgeBase(kbId.value) || null
+const kbName = computed(() => kb.value?.name || '')
+const kbScope = computed(() => kb.value?.scope)
+const kbStatus = computed(() => kb.value?.status)
+const canManage = computed(() => {
+  if (!kb.value || !auth.user) return false
+  return kb.value.owner_id === auth.user.id || auth.isAdmin
 })
 
-const messages = computed<ChatMessage[]>(() => {
-  return chatStore.getMessages(kbId.value)
-})
-
-const msgsLoading = computed(() => chatStore.loading)
-const sending = computed(() => chatStore.sending)
-const chatError = computed(() => chatStore.error)
-
-const activeDoc = computed(() => {
-  if (!activeDocId.value) return null
-  return documents.value.find((d) => d.id === activeDocId.value) || null
-})
-
-// === 文档预览 ===
-const previewUrl = ref('')
-const previewLoading = ref(false)
-const previewError = ref('')
-
-const previewable = computed(() =>
-  activeDoc.value ? isPreviewable(activeDoc.value.filename) : false
-)
-
-watch(activeDocId, async (id) => {
-  // 清理上一个预览
-  if (previewUrl.value) {
-    URL.revokeObjectURL(previewUrl.value)
-    previewUrl.value = ''
-  }
-  previewError.value = ''
-  if (!id || !activeDoc.value || !previewable.value) return
-
-  previewLoading.value = true
+async function load() {
   try {
-    previewUrl.value = await previewDocument(kbId.value, id)
-  } catch (e: any) {
-    previewError.value = e?.response?.data?.detail || '预览加载失败'
-  } finally {
-    previewLoading.value = false
-  }
-})
-
-onUnmounted(() => {
-  if (previewUrl.value) URL.revokeObjectURL(previewUrl.value)
-})
-
-function selectDoc(id: number) {
-  activeDocId.value = activeDocId.value === id ? null : id
-}
-
-async function loadMessages() {
-  await chatStore.loadMessages(kbId.value)
-}
-
-async function handleSend(content: string) {
-  const success = await chatStore.send(kbId.value, content)
-  if (!success && chatStore.error) {
-    ElMessage.error(chatStore.error)
-  }
-}
-
-function handleRetry(_msg: ChatMessage) {
-  ElMessage.info('重试功能将在后续版本完善')
-}
-
-function handleSuggest(question: string) {
-  handleSend(question)
-}
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
-}
-
-function formatDate(dateStr: string): string {
-  try {
-    return new Date(dateStr).toLocaleDateString('zh-CN')
+    kb.value = await fetchKnowledgeBase(kbId.value)
   } catch {
-    return dateStr
+    /* ignore */
   }
 }
 
-function fileExt(filename: string): string {
-  const ext = filename.split('.').pop()
-  return ext ? ext.toUpperCase() : 'FILE'
+onMounted(load)
+watch(kbId, load)
+
+const tabs = [
+  {
+    path: '',
+    label: '对话',
+    icon: () => h('svg', { viewBox: '0 0 24 24', width: 16, height: 16, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6 }, [
+      h('path', { d: 'M21 12a8 8 0 0 1-11.6 7.2L4 21l1.8-5.4A8 8 0 1 1 21 12z' }),
+    ]),
+  },
+  {
+    path: 'documents',
+    label: '文档',
+    icon: () => h('svg', { viewBox: '0 0 24 24', width: 16, height: 16, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6 }, [
+      h('path', { d: 'M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z' }),
+      h('path', { d: 'M14 3v6h6' }),
+    ]),
+  },
+  {
+    path: 'settings',
+    label: '设置',
+    icon: () => h('svg', { viewBox: '0 0 24 24', width: 16, height: 16, fill: 'none', stroke: 'currentColor', 'stroke-width': 1.6 }, [
+      h('circle', { cx: 12, cy: 12, r: 3 }),
+      h('path', { d: 'M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z' }),
+    ]),
+  },
+]
+
+function scopeVariant(s: KnowledgeScope): string {
+  return s === 'public' ? 'info' : s === 'org' ? 'accent' : 'success'
 }
-
-// 加载文档列表 + KB 创建者（决定上传/删除权限）
-async function loadDocsAndOwner(id: number) {
-  docsLoading.value = true
-  try {
-    const res = await fetchDocumentList(id)
-    documents.value = res.data
-  } catch {
-    documents.value = []
-  } finally {
-    docsLoading.value = false
-  }
-  const detail = await knowledgeStore.refreshKnowledgeBase(id)
-  kbOwnerId.value = detail?.owner_id ?? null
-}
-
-/** 文档数量变化后刷新（上传/删除后由 documents.vue 触发） */
-async function reloadDocuments() {
-  const id = kbId.value
-  if (!id) return
-  await loadDocsAndOwner(id)
-}
-
-// Load KB info and documents when route changes
-watch(kbId, async (id) => {
-  activeDocId.value = null
-
-  // Ensure KB is loaded
-  if (!knowledgeStore.getKnowledgeBase(id) && knowledgeStore.knowledgeBases.length === 0) {
-    kbLoading.value = true
-    await knowledgeStore.loadKnowledgeBases()
-    kbLoading.value = false
-  }
-
-  // Load documents + owner
-  await loadDocsAndOwner(id)
-
-  // Load chat messages
-  loadMessages()
-}, { immediate: true })
 </script>
 
-<style scoped>
-.knowledge-layout {
-  display: flex;
-  height: 100%;
-  overflow: hidden;
-  background: var(--color-bg);
+<style lang="scss" scoped>
+@use '@/styles/tokens' as *;
+
+.kb-layout {
+  min-height: calc(100vh - #{$topbar-h} - 64px);
+
+  &__topbar {
+    display: flex;
+    align-items: center;
+    gap: $s-4;
+    padding: $s-5 0;
+    margin-bottom: $s-4;
+    border-bottom: 1px solid $border-subtle;
+    background: $bg-canvas;
+    position: sticky;
+    top: $topbar-h;
+    z-index: 5;
+  }
+
+  &__title-block {
+    display: flex;
+    align-items: baseline;
+    gap: $s-2;
+    padding-right: $s-4;
+    border-right: 1px solid $border-subtle;
+  }
+  &__title {
+    font-family: $font-display;
+    font-size: $fs-20;
+    font-weight: $fw-semibold;
+    color: $text-primary;
+    letter-spacing: -0.01em;
+  }
+  &__id {
+    color: $text-tertiary;
+    font-size: $fs-12;
+  }
+
+  &__tabs {
+    display: flex;
+    gap: $s-1;
+  }
+
+  &__right {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: $s-3;
+  }
+
+  &__status {
+    display: inline-flex;
+    align-items: center;
+    gap: $s-2;
+    font-size: $fs-13;
+  }
+
+  &__body {
+    padding-top: $s-4;
+  }
 }
 
-.chat-area {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  overflow: hidden;
-}
-
-/* Context panel (right) */
-.context-panel {
-  width: 320px;
-  min-width: 320px;
-  background: var(--color-card);
-  border-left: 1px solid var(--color-border-light);
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.context-header {
-  display: flex;
+.back-btn {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  padding: var(--space-5);
-  border-bottom: 1px solid var(--color-border-light);
-}
-
-.context-title {
-  font-size: var(--text-sm);
-  font-weight: 600;
-  color: var(--color-foreground);
-}
-
-.context-close {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-sm);
-  border: none;
+  gap: $s-2;
+  padding: $s-2 $s-3;
+  border-radius: $r-md;
   background: transparent;
-  color: var(--color-muted-foreground);
+  border: 1px solid $border-subtle;
+  color: $text-secondary;
+  font-size: $fs-13;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition: background $dur-base $ease-out, color $dur-base $ease-out;
+  &:hover { background: $bg-surface; color: $text-primary; }
 }
 
-.context-close:hover {
-  background: var(--color-muted);
-  color: var(--color-foreground);
-}
-
-.context-body {
-  flex: 1;
-  overflow-y: auto;
-  padding: var(--space-5);
-}
-
-.doc-preview-header {
-  display: flex;
+.tab-item {
+  display: inline-flex;
   align-items: center;
-  gap: var(--space-3);
-  margin-bottom: var(--space-4);
+  gap: $s-2;
+  padding: $s-2 $s-3;
+  border-radius: $r-md;
+  background: transparent;
+  border: none;
+  color: $text-secondary;
+  font-size: $fs-14;
+  font-weight: $fw-medium;
+  cursor: pointer;
+  transition: background $dur-base $ease-out, color $dur-base $ease-out;
+
+  &:hover { color: $text-primary; background: $bg-surface; }
+  &--active {
+    color: $accent;
+    background: $bg-surface;
+    box-shadow: inset 0 -1px 0 $accent;
+  }
 }
 
-.doc-size {
-  font-size: var(--text-xs);
-  color: var(--color-muted-foreground);
-}
-
-.doc-preview-title {
-  font-size: var(--text-lg);
-  font-weight: 600;
-  color: var(--color-foreground);
-  margin-bottom: var(--space-2);
-}
-
-.doc-preview-meta {
-  font-size: var(--text-xs);
-  color: var(--color-muted-foreground);
-  margin-bottom: var(--space-6);
-}
-
-.preview-loading {
-  padding: var(--space-4) 0;
-}
-
-.preview-frame {
-  width: 100%;
-  height: 70vh;
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-md);
-  background: var(--color-card);
-  margin-top: var(--space-3);
-}
+.fade-enter-active, .fade-leave-active { transition: opacity $dur-base $ease-out; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

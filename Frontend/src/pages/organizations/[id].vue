@@ -1,229 +1,183 @@
 <template>
-  <div class="org-detail">
-    <!-- Loading -->
-    <div v-if="loading" class="detail-loading">
-      <el-skeleton animated style="height: 200px" />
-    </div>
-
-    <!-- Not found -->
-    <EmptyState
-      v-else-if="!org"
-      type="error"
-      title="组织未找到"
-      description="组织可能已删除，或你没有访问权限"
-      action-label="返回组织列表"
-      @action="$router.push('/organizations')"
-    />
-
-    <template v-else>
-      <!-- Org info header -->
-      <section class="org-info">
-        <div class="org-info-main">
-          <div class="org-avatar">{{ org.name.charAt(0).toUpperCase() }}</div>
-          <div class="org-info-text">
-            <h1 class="org-name">{{ org.name }}</h1>
-            <p class="org-description">{{ org.description || '暂无描述' }}</p>
-            <div class="org-meta-row">
-              <el-tag size="small" :type="roleTagType" effect="light">
-                {{ orgRoleLabel(myRole) }}
-              </el-tag>
-              <span class="org-meta">
-                所有者：{{ org.owner?.username || org.owner?.email || '未知' }}
-              </span>
-              <span class="org-meta">创建于 {{ formatDate(org.created_at) }}</span>
-            </div>
+  <div class="org-detail" v-if="org">
+    <header class="org-detail__head">
+      <button class="back-btn" @click="$router.push('/organizations')">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="m15 6-6 6 6 6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>组织</span>
+      </button>
+      <div class="org-detail__main">
+        <div class="org-detail__avatar">{{ org.name.charAt(0).toUpperCase() }}</div>
+        <div class="org-detail__text">
+          <h1 class="org-detail__name">{{ org.name }}</h1>
+          <p class="org-detail__desc">{{ org.description || '无描述' }}</p>
+          <div class="org-detail__meta">
+            <span class="badge" :class="`badge--${myRoleVariant}`">
+              <span class="dot" /> {{ orgRoleLabel(myRole) }}
+            </span>
+            <span class="muted">所有者：{{ org.owner?.username || org.owner?.email || '—' }}</span>
+            <span class="faint mono">{{ formatDate(org.created_at) }}</span>
           </div>
         </div>
-        <div class="org-actions">
-          <el-button v-if="canManage" :icon="Edit" @click="openEditDialog">
-            编辑信息
-          </el-button>
-          <el-button v-if="isOwner" type="danger" plain :icon="Delete" @click="handleDeleteOrg">
-            删除组织
-          </el-button>
-          <el-button v-if="!isOwner" @click="handleQuit">
-            退出组织
-          </el-button>
-        </div>
-      </section>
+      </div>
+      <div class="org-detail__actions">
+        <button v-if="canManage" class="btn btn--ghost" @click="startEdit">编辑信息</button>
+        <button v-if="isOwner" class="btn btn--danger" @click="handleDeleteOrg">删除组织</button>
+        <button v-if="!isOwner" class="btn btn--ghost" @click="handleQuit">退出组织</button>
+      </div>
+    </header>
 
-      <!-- Members -->
-      <section class="members-section">
-        <div class="section-header">
-          <h2 class="section-title">成员管理（{{ members.length }}）</h2>
-          <el-button v-if="canManage" type="primary" :icon="Plus" @click="openAddMember">
-            添加成员
-          </el-button>
+    <!-- Members -->
+    <section class="members-section">
+      <div class="section-head">
+        <div>
+          <span class="eyebrow">成员</span>
+          <h2 class="section-head__title">{{ members.length }} 人</h2>
         </div>
+        <button v-if="canManage" class="btn btn--primary" @click="addOpen = true">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14" stroke-linecap="round"/></svg>
+          添加成员
+        </button>
+      </div>
 
-        <el-table :data="members" class="member-table" v-loading="membersLoading">
-          <el-table-column label="成员" min-width="220">
-            <template #default="{ row }">
-              <div class="member-cell">
-                <UserAvatar :email="row.user?.email || ''" />
-                <div class="member-info">
-                  <span class="member-name">
-                    {{ row.user?.username || row.user?.email || `用户 #${row.user?.id ?? '?'}` }}
-                  </span>
-                  <span v-if="row.user?.email" class="member-email">{{ row.user.email }}</span>
-                </div>
+      <div v-if="membersLoading" class="members-list">
+        <div v-for="i in 3" :key="i" class="member-row member-row--skel" />
+      </div>
+      <div v-else class="members-list">
+        <div v-for="m in members" :key="m.user?.id" class="member-row">
+          <div class="member-row__avatar">{{ (m.user?.email || m.user?.username || '?').charAt(0).toUpperCase() }}</div>
+          <div class="member-row__main">
+            <span class="member-row__name">{{ m.user?.username || m.user?.email || `用户 #${m.user?.id}` }}</span>
+            <span class="member-row__email">{{ m.user?.email }}</span>
+          </div>
+          <div class="member-row__role">
+            <select
+              v-if="isOwner && m.role !== 'owner'"
+              :value="m.role"
+              class="select"
+              @change="(e) => handleChangeRole(m, (e.target as HTMLSelectElement).value as OrgRole)"
+            >
+              <option value="admin">管理员</option>
+              <option value="member">成员</option>
+            </select>
+            <span v-else class="badge" :class="`badge--${roleVariant(m.role)}`">
+              <span class="dot" /> {{ orgRoleLabel(m.role) }}
+            </span>
+          </div>
+          <span class="member-row__joined faint mono">{{ formatDate(m.joined_at) }}</span>
+          <button v-if="canManage && m.role !== 'owner'" class="btn btn--ghost btn--sm" @click="handleRemove(m)">移除</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Edit modal -->
+    <transition name="fade">
+      <div v-if="editOpen" class="modal-backdrop" @click.self="editOpen = false">
+        <div class="modal">
+          <header class="modal__head">
+            <h2 class="modal__title">编辑组织</h2>
+            <button class="btn btn--icon btn--ghost btn--sm" @click="editOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 6l12 12M6 18L18 6" stroke-linecap="round"/></svg>
+            </button>
+          </header>
+          <form @submit.prevent="handleSaveEdit" class="modal__body">
+            <div class="field">
+              <label class="field__label">名称</label>
+              <input v-model="editForm.name" class="input" maxlength="100" required />
+            </div>
+            <div class="field">
+              <label class="field__label">描述</label>
+              <textarea v-model="editForm.description" class="textarea" rows="3" required />
+            </div>
+            <footer class="modal__foot">
+              <button type="button" class="btn btn--ghost" @click="editOpen = false">取消</button>
+              <button type="submit" class="btn btn--primary" :disabled="submitting">
+                {{ submitting ? '保存中…' : '保存' }}
+              </button>
+            </footer>
+          </form>
+        </div>
+      </div>
+    </transition>
+
+    <!-- Add member modal -->
+    <transition name="fade">
+      <div v-if="addOpen" class="modal-backdrop" @click.self="addOpen = false">
+        <div class="modal">
+          <header class="modal__head">
+            <h2 class="modal__title">添加成员</h2>
+            <button class="btn btn--icon btn--ghost btn--sm" @click="addOpen = false">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 6l12 12M6 18L18 6" stroke-linecap="round"/></svg>
+            </button>
+          </header>
+          <form @submit.prevent="handleAddMember" class="modal__body">
+            <div class="field">
+              <label class="field__label">用户 ID</label>
+              <input v-model.number="addForm.user_id" type="number" class="input" min="1" required />
+              <span class="field__hint">输入要添加的用户 ID（需由创建者提供）</span>
+            </div>
+            <div class="field">
+              <label class="field__label">角色</label>
+              <div class="radio-row">
+                <label class="radio-card" :class="{ 'radio-card--active': addForm.role === 'member' }">
+                  <input type="radio" v-model="addForm.role" value="member" />
+                  <span class="radio-card__title">成员</span>
+                </label>
+                <label class="radio-card" :class="{ 'radio-card--active': addForm.role === 'admin' }">
+                  <input type="radio" v-model="addForm.role" value="admin" />
+                  <span class="radio-card__title">管理员</span>
+                </label>
               </div>
-            </template>
-          </el-table-column>
-          <el-table-column label="角色" width="160">
-            <template #default="{ row }">
-              <el-tag v-if="row.role === 'owner'" type="danger" effect="light">
-                {{ orgRoleLabel(row.role) }}
-              </el-tag>
-              <el-select
-                v-else-if="isOwner && row.role !== 'owner'"
-                :model-value="row.role"
-                size="small"
-                style="width: 110px"
-                @change="(role: any) => handleChangeRole(row, role)"
-              >
-                <el-option label="管理员" value="admin" />
-                <el-option label="成员" value="member" />
-              </el-select>
-              <el-tag v-else :type="row.role === 'admin' ? 'warning' : 'info'" effect="light">
-                {{ orgRoleLabel(row.role) }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="加入时间" width="140">
-            <template #default="{ row }">
-              <span class="joined-at">{{ formatDate(row.joined_at) }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="操作" width="100" align="right">
-            <template #default="{ row }">
-              <el-button
-                v-if="canManage && row.role !== 'owner'"
-                size="small"
-                type="danger"
-                text
-                @click="handleRemoveMember(row)"
-              >
-                移除
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
-      </section>
-
-      <!-- Edit org dialog -->
-      <el-dialog v-model="editDialogVisible" title="编辑组织" width="480px" :close-on-click-modal="false">
-        <el-form ref="editFormRef" :model="editForm" :rules="editRules" label-width="80px">
-          <el-form-item label="名称" prop="name">
-            <el-input v-model="editForm.name" maxlength="100" show-word-limit />
-          </el-form-item>
-          <el-form-item label="描述" prop="description">
-            <el-input v-model="editForm.description" type="textarea" :rows="3" />
-          </el-form-item>
-        </el-form>
-        <template #footer>
-          <el-button @click="editDialogVisible = false">取消</el-button>
-          <el-button type="primary" :loading="submitting" @click="handleSaveEdit">保存</el-button>
-        </template>
-      </el-dialog>
-
-      <!-- Add member dialog -->
-      <el-dialog v-model="addDialogVisible" title="添加成员" width="440px" :close-on-click-modal="false">
-        <el-form ref="addFormRef" :model="addForm" :rules="addRules" label-width="80px">
-          <el-form-item label="用户 ID" prop="user_id">
-            <el-input-number v-model="addForm.user_id" :min="1" style="width: 100%" />
-            <div class="form-hint">输入要添加的用户 ID（目前需由创建者告知）</div>
-          </el-form-item>
-          <el-form-item label="角色" prop="role">
-            <el-radio-group v-model="addForm.role">
-              <el-radio value="member">成员</el-radio>
-              <el-radio value="admin">管理员</el-radio>
-            </el-radio-group>
-          </el-form-item>
-        </el-form>
-        <template #footer>
-          <el-button @click="addDialogVisible = false">取消</el-button>
-          <el-button type="primary" :loading="submitting" @click="handleAddMember">添加</el-button>
-        </template>
-      </el-dialog>
-    </template>
+            </div>
+            <footer class="modal__foot">
+              <button type="button" class="btn btn--ghost" @click="addOpen = false">取消</button>
+              <button type="submit" class="btn btn--primary" :disabled="submitting">
+                {{ submitting ? '添加中…' : '添加' }}
+              </button>
+            </footer>
+          </form>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, Edit, Plus } from '@element-plus/icons-vue'
-import type { FormInstance, FormRules } from 'element-plus'
-import {
-  orgRoleLabel,
-  type Organization,
-  type OrganizationMember,
-  type OrgRole,
-} from '@/types/knowledge'
-import {
-  addMember,
-  deleteOrganization,
-  fetchMembers,
-  fetchOrganization,
-  quitOrganization,
-  removeMember,
-  updateMemberRole,
-  updateOrganization,
-} from '@/api/organization'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { addMember, deleteOrganization, fetchMembers, fetchOrganization, quitOrganization, removeMember, updateMemberRole, updateOrganization } from '@/api/organization'
 import { useAuthStore } from '@/stores/auth'
-import EmptyState from '@/components/common/EmptyState.vue'
-import UserAvatar from '@/components/common/UserAvatar.vue'
+import { orgRoleLabel } from '@/types/knowledge'
+import type { Organization, OrganizationMember, OrgRole } from '@/types/knowledge'
 
 const route = useRoute()
-const authStore = useAuthStore()
-const orgId = computed(() => parseInt(route.params.id as string))
+const router = useRouter()
+const auth = useAuthStore()
+const orgId = computed(() => Number(route.params.id))
 
 const org = ref<Organization | null>(null)
 const members = ref<OrganizationMember[]>([])
-const loading = ref(false)
-const membersLoading = ref(false)
+const membersLoading = ref(true)
 const submitting = ref(false)
+const editOpen = ref(false)
+const addOpen = ref(false)
 
-const editDialogVisible = ref(false)
-const addDialogVisible = ref(false)
-const editFormRef = ref<FormInstance>()
-const addFormRef = ref<FormInstance>()
-const editForm = ref({ name: '', description: '' })
-const addForm = ref<{ user_id: number | undefined; role: OrgRole }>({ user_id: undefined, role: 'member' })
+const editForm = reactive({ name: '', description: '' })
+const addForm = reactive<{ user_id: number | null; role: OrgRole }>({ user_id: null, role: 'member' })
 
-const editRules: FormRules = {
-  name: [{ required: true, message: '请输入组织名称', trigger: 'blur' }],
-}
-const addRules: FormRules = {
-  user_id: [{ required: true, message: '请输入用户 ID', trigger: 'blur' }],
-}
-
-/** 当前用户在本组织的角色 */
 const myRole = computed<OrgRole | null>(() => {
-  if (!authStore.user?.id) return null
-  const me = members.value.find((m) => m.user?.id === authStore.user?.id)
-  return me?.role || null
+  if (!auth.user?.id) return null
+  return members.value.find((m) => m.user?.id === auth.user?.id)?.role || null
 })
-
 const isOwner = computed(() => myRole.value === 'owner')
 const canManage = computed(() => myRole.value === 'owner' || myRole.value === 'admin')
 
-const roleTagType = computed(() => {
-  if (myRole.value === 'owner') return 'danger'
-  if (myRole.value === 'admin') return 'warning'
-  return 'info'
-})
+const myRoleVariant = computed(() => roleVariant(myRole.value))
 
 async function load() {
-  loading.value = true
   try {
     org.value = await fetchOrganization(orgId.value)
   } catch {
     org.value = null
-  } finally {
-    loading.value = false
   }
   await loadMembers()
 }
@@ -239,271 +193,359 @@ async function loadMembers() {
   }
 }
 
-function openEditDialog() {
+watch(orgId, load)
+onMounted(load)
+
+function startEdit() {
   if (!org.value) return
-  editForm.value = { name: org.value.name, description: org.value.description || '' }
-  editDialogVisible.value = true
+  editForm.name = org.value.name
+  editForm.description = org.value.description || ''
+  editOpen.value = true
 }
 
 async function handleSaveEdit() {
-  if (!editFormRef.value) return
-  const valid = await editFormRef.value.validate().catch(() => false)
-  if (!valid) return
   submitting.value = true
   try {
-    await updateOrganization(orgId.value, {
-      name: editForm.value.name.trim(),
-      description: editForm.value.description.trim(),
-    })
-    ElMessage.success('组织信息已更新')
-    editDialogVisible.value = false
+    await updateOrganization(orgId.value, { name: editForm.name.trim(), description: editForm.description.trim() })
+    editOpen.value = false
     await load()
   } catch {
-    // 拦截器已提示
+    /* interceptor */
   } finally {
     submitting.value = false
   }
 }
 
 async function handleDeleteOrg() {
-  try {
-    await ElMessageBox.confirm(
-      `确定删除组织「${org.value?.name}」吗？该组织下的知识库也会一并删除，且不可恢复。`,
-      '删除确认',
-      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
-    )
-  } catch {
-    return
-  }
+  if (!confirm(`确定删除组织「${org.value?.name}」吗？该操作不可撤销。`)) return
   try {
     await deleteOrganization(orgId.value)
-    ElMessage.success('组织已删除')
-    // 回到列表
-    window.location.hash = '#/organizations'
+    router.push('/organizations')
   } catch {
-    // 拦截器已提示
+    /* */
   }
 }
 
 async function handleQuit() {
-  try {
-    await ElMessageBox.confirm('确定退出该组织吗？', '退出确认', {
-      type: 'warning',
-      confirmButtonText: '退出',
-      cancelButtonText: '取消',
-    })
-  } catch {
-    return
-  }
+  if (!confirm('确定退出该组织？')) return
   try {
     await quitOrganization(orgId.value)
-    ElMessage.success('已退出组织')
-    window.location.hash = '#/organizations'
+    router.push('/organizations')
   } catch {
-    // 拦截器已提示
+    /* */
   }
-}
-
-function openAddMember() {
-  addForm.value = { user_id: undefined, role: 'member' }
-  addDialogVisible.value = true
 }
 
 async function handleAddMember() {
-  if (!addFormRef.value) return
-  const valid = await addFormRef.value.validate().catch(() => false)
-  if (!valid || addForm.value.user_id === undefined) return
+  if (!addForm.user_id) return
   submitting.value = true
   try {
-    await addMember(orgId.value, addForm.value.user_id, addForm.value.role)
-    ElMessage.success('成员已添加')
-    addDialogVisible.value = false
+    await addMember(orgId.value, addForm.user_id, addForm.role)
+    addOpen.value = false
     await loadMembers()
   } catch {
-    // 拦截器已提示
+    /* */
   } finally {
     submitting.value = false
   }
 }
 
-async function handleChangeRole(row: OrganizationMember, role: OrgRole) {
-  if (!row.user) return
+async function handleChangeRole(m: OrganizationMember, role: OrgRole) {
+  if (!m.user) return
   try {
-    await updateMemberRole(orgId.value, row.user.id, role)
-    ElMessage.success('角色已更新')
+    await updateMemberRole(orgId.value, m.user.id, role)
     await loadMembers()
   } catch {
-    // 拦截器已提示
+    /* */
   }
 }
 
-async function handleRemoveMember(row: OrganizationMember) {
-  if (!row.user) return
+async function handleRemove(m: OrganizationMember) {
+  if (!m.user) return
+  if (!confirm(`确定移除成员「${m.user.username || m.user.email}」？`)) return
   try {
-    await ElMessageBox.confirm(
-      `确定移除成员「${row.user.username || row.user.email}」吗？`,
-      '移除确认',
-      { type: 'warning', confirmButtonText: '移除', cancelButtonText: '取消' }
-    )
-  } catch {
-    return
-  }
-  try {
-    await removeMember(orgId.value, row.user.id)
-    ElMessage.success('成员已移除')
+    await removeMember(orgId.value, m.user.id)
     await loadMembers()
   } catch {
-    // 拦截器已提示
+    /* */
   }
 }
 
-function formatDate(dateStr: string): string {
+function roleVariant(role: string | null): string {
+  if (role === 'owner') return 'danger'
+  if (role === 'admin') return 'warning'
+  return ''
+}
+
+function formatDate(iso: string) {
   try {
-    return new Date(dateStr).toLocaleDateString('zh-CN')
+    return new Date(iso).toLocaleDateString('zh-CN', { dateStyle: 'short' })
   } catch {
-    return dateStr
+    return iso
   }
 }
-
-onMounted(load)
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '@/styles/tokens' as *;
+
 .org-detail {
-  max-width: var(--content-max-width);
-  margin: 0 auto;
+  &__head {
+    display: flex;
+    align-items: flex-start;
+    gap: $s-3;
+    margin-bottom: $s-8;
+    padding-bottom: $s-6;
+    border-bottom: 1px solid $border-subtle;
+  }
+  &__main {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    gap: $s-4;
+    margin-top: $s-4;
+  }
+  &__avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: $r-lg;
+    background: $accent;
+    color: $text-inverse;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: $font-display;
+    font-size: $fs-24;
+    font-weight: $fw-semibold;
+    flex-shrink: 0;
+  }
+  &__name {
+    font-family: $font-display;
+    font-size: $fs-32;
+    font-weight: $fw-semibold;
+    letter-spacing: -0.015em;
+    margin-bottom: $s-2;
+  }
+  &__desc {
+    color: $text-secondary;
+    font-size: $fs-15;
+    margin-bottom: $s-3;
+  }
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: $s-3;
+    font-size: $fs-13;
+    flex-wrap: wrap;
+  }
+  &__actions {
+    display: flex;
+    gap: $s-2;
+    flex-shrink: 0;
+    margin-top: $s-4;
+  }
 }
 
-.detail-loading {
-  padding: var(--space-8);
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: $s-2;
+  padding: $s-2 $s-3;
+  border-radius: $r-md;
+  background: transparent;
+  border: 1px solid $border-subtle;
+  color: $text-secondary;
+  font-size: $fs-13;
+  cursor: pointer;
+  transition: all $dur-base $ease-out;
+  &:hover { background: $bg-surface; color: $text-primary; }
 }
 
-/* Org info */
-.org-info {
+.section-head {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  align-items: flex-start;
-  gap: var(--space-6);
-  margin-bottom: var(--space-8);
+  margin-bottom: $s-4;
+
+  .eyebrow { display: block; margin-bottom: $s-1; }
+  &__title {
+    font-family: $font-body;
+    font-weight: $fw-semibold;
+    font-size: $fs-17;
+    color: $text-primary;
+  }
 }
 
-.org-info-main {
+.members-section {
+  background: $bg-surface;
+  border: 1px solid $border-subtle;
+  border-radius: $r-lg;
+  padding: $s-6;
+}
+
+.members-list {
   display: flex;
-  gap: var(--space-5);
-  min-width: 0;
+  flex-direction: column;
 }
 
-.org-avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: var(--radius-xl);
-  background: var(--gradient-primary);
-  color: #fff;
+.member-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto auto;
+  align-items: center;
+  gap: $s-4;
+  padding: $s-3 $s-2;
+  border-bottom: 1px solid $border-subtle;
+  font-size: $fs-13;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: $bg-elevated; }
+  &--skel {
+    height: 56px;
+    background: linear-gradient(90deg, $bg-surface 0%, $bg-elevated 50%, $bg-surface 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+
+  &__avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: $bg-elevated;
+    color: $accent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: $font-display;
+    font-weight: $fw-semibold;
+    font-size: $fs-14;
+  }
+  &__main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  &__name {
+    color: $text-primary;
+    font-weight: $fw-medium;
+  }
+  &__email {
+    color: $text-tertiary;
+    font-size: $fs-12;
+  }
+  &__joined {
+    min-width: 90px;
+    text-align: right;
+  }
+}
+
+.select {
+  height: 28px;
+  padding: 0 $s-2;
+  border-radius: $r-sm;
+  background: $bg-inset;
+  border: 1px solid $border-subtle;
+  color: $text-primary;
+  font-size: $fs-13;
+  cursor: pointer;
+  &:hover { border-color: $border-strong; }
+  &:focus { outline: none; border-color: $accent; }
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-heading);
-  font-size: var(--text-2xl);
-  font-weight: 700;
-  flex-shrink: 0;
+  padding: $s-6;
 }
 
-.org-name {
-  font-family: var(--font-heading);
-  font-size: var(--text-3xl);
-  font-weight: 700;
-  color: var(--color-foreground);
-  margin-bottom: var(--space-2);
-}
-
-.org-description {
-  font-size: var(--text-base);
-  color: var(--color-muted-foreground);
-  margin-bottom: var(--space-3);
-}
-
-.org-meta-row {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  flex-wrap: wrap;
-}
-
-.org-meta {
-  font-size: var(--text-sm);
-  color: var(--color-muted-foreground);
-}
-
-.org-actions {
-  display: flex;
-  gap: var(--space-3);
-  flex-shrink: 0;
-}
-
-/* Members */
-.members-section {
-  background: var(--color-card);
-  border: 1px solid var(--color-border-light);
-  border-radius: var(--radius-lg);
-  padding: var(--space-6);
-}
-
-.section-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--space-5);
-}
-
-.section-title {
-  font-family: var(--font-heading);
-  font-size: var(--text-xl);
-  font-weight: 600;
-  color: var(--color-foreground);
-}
-
-.member-table {
+.modal {
   width: 100%;
-}
+  max-width: 440px;
+  background: $bg-surface;
+  border: 1px solid $border-strong;
+  border-radius: $r-lg;
+  box-shadow: $shadow-lg;
 
-.member-cell {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-.member-info {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.member-name {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--color-foreground);
-}
-
-.member-email {
-  font-size: var(--text-xs);
-  color: var(--color-muted-foreground);
-}
-
-.joined-at {
-  font-size: var(--text-sm);
-  color: var(--color-muted-foreground);
-}
-
-.form-hint {
-  font-size: var(--text-xs);
-  color: var(--color-muted-foreground);
-  margin-top: var(--space-2);
-  line-height: 1.5;
-}
-
-@media (max-width: 768px) {
-  .org-info {
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: $s-5 $s-6 $s-4;
+    border-bottom: 1px solid $border-subtle;
+  }
+  &__title {
+    font-family: $font-display;
+    font-size: $fs-20;
+    font-weight: $fw-semibold;
+  }
+  &__body {
+    padding: $s-5 $s-6;
+    display: flex;
     flex-direction: column;
+    gap: $s-4;
+  }
+  &__foot {
+    display: flex;
+    justify-content: flex-end;
+    gap: $s-2;
+    padding-top: $s-3;
+    border-top: 1px solid $border-subtle;
+    margin-top: $s-2;
   }
 }
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: $s-2;
+  &__label {
+    font-size: $fs-13;
+    font-weight: $fw-medium;
+    color: $text-secondary;
+  }
+  &__hint {
+    font-size: $fs-12;
+    color: $text-tertiary;
+  }
+}
+
+.radio-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: $s-2;
+}
+
+.radio-card {
+  position: relative;
+  padding: $s-3;
+  background: $bg-inset;
+  border: 1px solid $border-subtle;
+  border-radius: $r-md;
+  cursor: pointer;
+  text-align: center;
+  transition: all $dur-base $ease-out;
+
+  input { position: absolute; opacity: 0; }
+
+  &:hover { border-color: $border-strong; }
+  &--active {
+    border-color: $accent;
+    background: $accent-soft;
+  }
+
+  &__title {
+    font-size: $fs-14;
+    font-weight: $fw-medium;
+    color: $text-primary;
+  }
+}
+
+@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+.fade-enter-active, .fade-leave-active { transition: opacity $dur-base $ease-out; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

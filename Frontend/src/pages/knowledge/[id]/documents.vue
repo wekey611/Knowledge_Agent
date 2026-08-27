@@ -1,180 +1,139 @@
 <template>
-  <div class="doc-page-wrap">
-    <!-- Loading -->
-    <EmptyState v-if="kbLoading" type="loading" title="加载知识库..." />
-
-    <!-- Not found -->
-    <EmptyState
-      v-else-if="!knowledgeBase"
-      type="error"
-      title="知识库未找到"
-      description="请返回仪表盘选择有效的知识库"
-      action-label="返回仪表盘"
-      @action="$router.push('/dashboard')"
-    />
-
-    <div v-else class="doc-page">
-      <!-- Header -->
-      <header class="doc-header">
-        <div class="doc-header-text">
-          <h2 class="doc-title">{{ knowledgeBase.name }} <span class="doc-title-sep">·</span> 文档</h2>
-          <p class="doc-desc">
-            <template v-if="documents.length > 0">共 {{ documents.length }} 个文档</template>
-            <template v-else>还没有文档</template>
-          </p>
-        </div>
-        <el-button
-          v-if="canManage"
-          type="primary"
-          :icon="UploadFilled"
-          :loading="uploading"
-          @click="fileInput?.click()"
-        >
-          上传文档
-        </el-button>
-        <input
-          ref="fileInput"
-          type="file"
-          class="hidden-input"
-          :accept="acceptTypes"
-          multiple
-          @change="handleFileSelect"
-        />
-      </header>
-
-      <!-- Upload dropzone（仅创建者可见） -->
-      <div
-        v-if="canManage"
-        class="dropzone"
-        :class="{ 'is-dragging': isDragging, 'is-uploading': uploading }"
-        @dragover.prevent="isDragging = true"
-        @dragleave.prevent="isDragging = false"
-        @drop.prevent="handleDrop"
-        @click="fileInput?.click()"
-      >
-        <div class="dropzone-icon">
-          <el-icon :size="28"><UploadFilled /></el-icon>
-        </div>
-        <p class="dropzone-main">
-          拖拽文件到此处，或 <span class="dropzone-link">点击选择文件</span>
-        </p>
-        <p class="dropzone-sub">支持 PDF、Word、Markdown、TXT、HTML（可多选）</p>
-      </div>
-
-      <!-- Upload progress -->
-      <div v-if="uploadProgress > 0 && uploading" class="upload-progress">
-        <el-progress :percentage="uploadProgress" :stroke-width="6" />
-      </div>
-
-      <!-- List loading -->
-      <div v-if="listLoading" class="doc-list">
-        <div v-for="i in 4" :key="i" class="doc-row skeleton-row">
-          <div class="skeleton skeleton-icon" />
-          <div class="doc-info">
-            <div class="skeleton skeleton-title" />
-            <div class="skeleton skeleton-meta" />
-          </div>
-          <div class="skeleton skeleton-tag" />
-        </div>
-      </div>
-
-      <!-- Empty -->
-      <EmptyState
-        v-else-if="documents.length === 0"
-        type="empty"
-        title="暂无文档"
-        description="上传你的第一个文档，开始构建知识库"
+  <div class="docs-page">
+    <!-- Drop zone -->
+    <div
+      v-if="canManage"
+      class="dropzone"
+      :class="{ 'dropzone--dragging': isDragging, 'dropzone--uploading': uploading }"
+      @dragover.prevent="isDragging = true"
+      @dragleave.prevent="isDragging = false"
+      @drop.prevent="handleDrop"
+      @click="fileInput?.click()"
+    >
+      <input
+        ref="fileInput"
+        type="file"
+        class="docs-page__file-input"
+        :accept="acceptTypes"
+        multiple
+        @change="handleFileSelect"
       />
+      <div class="dropzone__icon">
+        <svg viewBox="0 0 32 32" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M16 22V8M10 14l6-6 6 6" stroke-linecap="round" stroke-linejoin="round" />
+          <path d="M4 22v4a2 2 0 0 0 2 2h20a2 2 0 0 0 2-2v-4" stroke-linecap="round" />
+        </svg>
+      </div>
+      <p class="dropzone__main">
+        {{ uploading ? '正在上传…' : '拖拽文件到此处，或' }}
+        <span v-if="!uploading" class="dropzone__link">点击选择</span>
+      </p>
+      <p class="dropzone__hint">PDF · Word · Markdown · TXT · HTML · 单文件 ≤ 50MB</p>
 
-      <!-- Document list -->
-      <div v-else class="doc-list">
-        <div v-for="doc in documents" :key="doc.id" class="doc-row">
-          <div class="doc-icon" :style="{ color: fileTypeColor(doc.filename) }">
-            <el-icon :size="20"><Document /></el-icon>
-          </div>
-
-          <div class="doc-info">
-            <span class="doc-name" :title="doc.filename">{{ doc.filename }}</span>
-            <span class="doc-meta">
-              {{ formatSize(doc.file_size) }} · {{ doc.chunk_count }} 分块 · 更新于 {{ formatDate(doc.updated_at) }}
-            </span>
-          </div>
-
-          <span
-            class="status-tag"
-            :style="{
-              color: PARSER_STATUS_COLORS[doc.parser_status],
-              background: `${PARSER_STATUS_COLORS[doc.parser_status]}1A`,
-            }"
-          >
-            <span class="status-dot" :style="{ background: PARSER_STATUS_COLORS[doc.parser_status] }" />
-            {{ PARSER_STATUS_LABELS[doc.parser_status] }}
-          </span>
-
-          <div class="doc-actions">
-            <el-tooltip content="下载">
-              <el-button size="small" :icon="Download" circle @click="handleDownload(doc)" />
-            </el-tooltip>
-            <el-tooltip v-if="canManage" content="删除">
-              <el-button size="small" type="danger" :icon="Delete" circle @click="handleDelete(doc)" />
-            </el-tooltip>
-          </div>
+      <div v-if="uploading" class="dropzone__progress">
+        <div class="progress-bar">
+          <div class="progress-bar__fill" :style="{ width: uploadProgress + '%' }" />
         </div>
+        <span class="progress-text mono">{{ uploadProgress }}%</span>
       </div>
     </div>
+
+    <!-- Document list -->
+    <div v-if="listLoading" class="docs-list">
+      <div v-for="i in 3" :key="i" class="docs-list__skel" />
+    </div>
+
+    <div v-else-if="documents.length === 0" class="docs-empty">
+      <EmptyState title="还没有文档" description="上传第一个文档，开始构建知识索引。">
+        <template v-if="canManage" #icon>
+          <svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" />
+            <path d="M14 3v6h6" />
+          </svg>
+        </template>
+      </EmptyState>
+    </div>
+
+    <div v-else class="docs-list">
+      <div class="docs-list__head">
+        <span class="eyebrow">文档</span>
+        <span class="muted">{{ documents.length }} 份 · 共 {{ totalChunks }} 个分块</span>
+      </div>
+
+      <article v-for="doc in documents" :key="doc.id" class="doc-row">
+        <div class="doc-row__icon" :style="{ color: fileTypeColor(doc.filename), background: fileTypeBg(doc.filename) }">
+          <span class="mono">{{ fileExt(doc.filename).toUpperCase().slice(0, 4) }}</span>
+        </div>
+
+        <div class="doc-row__main">
+          <h4 class="doc-row__title">{{ doc.title }}</h4>
+          <div class="doc-row__meta">
+            <span class="mono">{{ formatSize(doc.file_size) }}</span>
+            <span class="faint">·</span>
+            <span class="mono">{{ doc.chunk_count }} 块</span>
+            <span class="faint">·</span>
+            <span class="mono">更新于 {{ formatDate(doc.updated_at) }}</span>
+          </div>
+        </div>
+
+        <span class="badge" :class="`badge--${statusVariant(doc.parser_status)}`">
+          <span class="dot" />
+          {{ PARSER_STATUS_LABELS[doc.parser_status] }}
+        </span>
+
+        <div class="doc-row__actions" v-if="canManage">
+          <button class="btn btn--ghost btn--icon btn--sm" @click="handleDownload(doc)" title="下载">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 4v12M6 12l6 6 6-6M4 20h16" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="btn btn--danger btn--icon btn--sm" @click="handleDelete(doc)" title="删除">
+            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 7h16M9 7V5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+      </article>
+    </div>
+
+    <!-- Delete confirm modal -->
+    <transition name="fade">
+      <div v-if="confirming" class="confirm-backdrop" @click.self="confirming = null">
+        <div class="confirm-dialog">
+          <h3 class="confirm-dialog__title">确认删除</h3>
+          <p class="confirm-dialog__desc">将永久删除「<strong>{{ confirming.title }}</strong>」及其索引，不可恢复。</p>
+          <div class="confirm-dialog__actions">
+            <button class="btn btn--ghost" @click="confirming = null">取消</button>
+            <button class="btn btn--danger" @click="confirmDelete">删除</button>
+          </div>
+        </div>
+      </div>
+    </transition>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Delete, Document, Download, UploadFilled } from '@element-plus/icons-vue'
-import type { KnowledgeBaseSimple, DocumentSimple } from '@/types/knowledge'
-import {
-  PARSER_STATUS_COLORS,
-  PARSER_STATUS_LABELS,
-} from '@/types/knowledge'
-import {
-  deleteDocument,
-  downloadDocument,
-  fetchDocuments,
-  uploadDocument,
-} from '@/api/document'
+import { deleteDocument, downloadDocument, fetchDocuments, uploadDocument } from '@/api/document'
 import EmptyState from '@/components/common/EmptyState.vue'
+import { PARSER_STATUS_LABELS } from '@/types/knowledge'
+import type { DocumentSimple, ParserStatus } from '@/types/knowledge'
 
-const props = defineProps<{
-  knowledgeBase: KnowledgeBaseSimple | null
-  kbLoading: boolean
-  /** 当前用户是否为 KB 创建者（决定上传/删除权限） */
-  canManage: boolean
-}>()
-
-const emit = defineEmits<{
-  /** 文档数量变化，通知父级刷新侧边栏与 KB 统计 */
-  'documents-changed': []
-}>()
-
-const kbId = computed(() => props.knowledgeBase?.id)
+const props = defineProps<{ kbId: number; canManage?: boolean }>()
 
 const documents = ref<DocumentSimple[]>([])
 const listLoading = ref(false)
-
-// 上传状态
-const fileInput = ref<HTMLInputElement>()
+const fileInput = ref<HTMLInputElement | null>(null)
 const isDragging = ref(false)
 const uploading = ref(false)
 const uploadProgress = ref(0)
+const confirming = ref<DocumentSimple | null>(null)
 
-const acceptTypes =
-  '.pdf,.doc,.docx,.md,.markdown,.txt,.html,.htm'
-
+const acceptTypes = '.pdf,.doc,.docx,.md,.markdown,.txt,.html,.htm'
 const MAX_SIZE_MB = 50
 
+const totalChunks = computed(() => documents.value.reduce((s, d) => s + d.chunk_count, 0))
+
 async function loadDocuments() {
-  if (!kbId.value) return
   listLoading.value = true
   try {
-    const res = await fetchDocuments(kbId.value)
+    const res = await fetchDocuments(props.kbId)
     documents.value = res.data
   } catch {
     documents.value = []
@@ -190,15 +149,16 @@ function handleDrop(e: DragEvent) {
 }
 
 function handleFileSelect(e: Event) {
-  const files = Array.from((e.target as HTMLInputElement).files || [])
+  const input = e.target as HTMLInputElement
+  const files = Array.from(input.files || [])
   if (files.length > 0) handleFiles(files)
-  ;(e.target as HTMLInputElement).value = ''
+  input.value = ''
 }
 
 async function handleFiles(files: File[]) {
   const oversized = files.find((f) => f.size > MAX_SIZE_MB * 1024 * 1024)
   if (oversized) {
-    ElMessage.error(`「${oversized.name}」超过 ${MAX_SIZE_MB}MB 限制`)
+    alert(`「${oversized.name}」超过 ${MAX_SIZE_MB}MB 限制`)
     return
   }
   uploading.value = true
@@ -207,18 +167,14 @@ async function handleFiles(files: File[]) {
   try {
     for (const file of files) {
       try {
-        await uploadDocument(kbId.value!, file)
+        await uploadDocument(props.kbId, file)
         success++
         uploadProgress.value = Math.round((success / files.length) * 100)
       } catch {
-        ElMessage.error(`「${file.name}」上传失败`)
+        alert(`「${file.name}」上传失败`)
       }
     }
-    if (success > 0) {
-      ElMessage.success(`成功上传 ${success} 个文档`)
-      await loadDocuments()
-      emit('documents-changed')
-    }
+    if (success > 0) await loadDocuments()
   } finally {
     uploading.value = false
     uploadProgress.value = 0
@@ -227,44 +183,57 @@ async function handleFiles(files: File[]) {
 
 async function handleDownload(doc: DocumentSimple) {
   try {
-    await downloadDocument(kbId.value!, doc.id, doc.filename)
+    await downloadDocument(props.kbId, doc.id, doc.filename)
   } catch {
-    // 拦截器已提示
+    /* ignore */
   }
 }
 
-async function handleDelete(doc: DocumentSimple) {
+function handleDelete(doc: DocumentSimple) {
+  confirming.value = doc
+}
+
+async function confirmDelete() {
+  if (!confirming.value) return
+  const doc = confirming.value
+  confirming.value = null
   try {
-    await ElMessageBox.confirm(
-      `确定删除「${doc.filename}」吗？删除后不可恢复。`,
-      '删除确认',
-      { type: 'warning', confirmButtonText: '删除', cancelButtonText: '取消' }
-    )
-  } catch {
-    return
-  }
-  try {
-    await deleteDocument(kbId.value!, doc.id)
-    ElMessage.success('文档已删除')
+    await deleteDocument(props.kbId, doc.id)
     await loadDocuments()
-    emit('documents-changed')
   } catch {
-    // 拦截器已提示
+    /* ignore */
   }
 }
 
-function fileTypeColor(filename: string): string {
-  const ext = filename.split('.').pop()?.toLowerCase()
+function fileExt(name: string) {
+  return name.split('.').pop() || ''
+}
+
+function fileTypeColor(name: string): string {
+  const ext = fileExt(name).toLowerCase()
   const map: Record<string, string> = {
-    pdf: '#EF4444',
-    doc: '#2563EB',
-    docx: '#2563EB',
-    md: '#8B5CF6',
-    txt: '#64748B',
-    html: '#F97316',
-    htm: '#F97316',
+    pdf: '#E5484D',
+    doc: '#6B9DD9',
+    docx: '#6B9DD9',
+    md: '#A8E6CF',
+    markdown: '#A8E6CF',
+    txt: '#9AA0A6',
+    html: '#F5A623',
+    htm: '#F5A623',
   }
-  return map[ext || ''] || 'var(--color-muted-foreground)'
+  return map[ext] || '#9AA0A6'
+}
+
+function fileTypeBg(name: string): string {
+  const color = fileTypeColor(name)
+  return color + '1A'
+}
+
+function statusVariant(s: ParserStatus): string {
+  if (s === 'completed') return 'success'
+  if (s === 'failed') return 'danger'
+  if (s === 'waiting') return ''
+  return 'info'
 }
 
 function formatSize(bytes: number): string {
@@ -273,229 +242,216 @@ function formatSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-function formatDate(dateStr: string): string {
+function formatDate(iso: string): string {
   try {
-    return new Date(dateStr).toLocaleDateString('zh-CN')
+    return new Date(iso).toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
   } catch {
-    return dateStr
+    return iso
   }
 }
 
-watch(kbId, () => loadDocuments())
+watch(() => props.kbId, loadDocuments)
 onMounted(loadDocuments)
 </script>
 
-<style scoped>
-.doc-page-wrap {
-  height: 100%;
-  overflow-y: auto;
-}
+<style lang="scss" scoped>
+@use '@/styles/tokens' as *;
 
-.doc-page {
-  max-width: 960px;
+.docs-page {
+  max-width: 880px;
   margin: 0 auto;
-  padding: var(--space-8) var(--space-7) var(--space-12);
+  &__file-input { display: none; }
 }
 
-/* Header */
-.doc-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: var(--space-7);
-}
-
-.doc-title {
-  font-family: var(--font-heading);
-  font-size: var(--text-2xl);
-  font-weight: 700;
-  color: var(--color-foreground);
-  margin-bottom: var(--space-2);
-}
-
-.doc-title-sep {
-  color: var(--color-border);
-  font-weight: 400;
-}
-
-.doc-desc {
-  font-size: var(--text-sm);
-  color: var(--color-muted-foreground);
-}
-
-.hidden-input {
-  display: none;
-}
-
-/* Dropzone */
 .dropzone {
-  border: 2px dashed var(--color-border);
-  border-radius: var(--radius-xl);
-  background: var(--color-card);
-  padding: var(--space-10) var(--space-6);
+  border: 2px dashed $border-strong;
+  border-radius: $r-lg;
+  background: $bg-surface;
+  padding: $s-10 $s-6;
   text-align: center;
   cursor: pointer;
-  transition: all var(--transition-normal);
-  margin-bottom: var(--space-7);
+  transition: all $dur-base $ease-out;
+  margin-bottom: $s-6;
+
+  &__icon {
+    width: 56px;
+    height: 56px;
+    margin: 0 auto $s-3;
+    border-radius: $r-md;
+    background: $accent-soft;
+    color: $accent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  &__main {
+    font-size: $fs-15;
+    color: $text-primary;
+    font-weight: $fw-medium;
+    margin-bottom: $s-1;
+  }
+  &__link {
+    color: $accent;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  &__hint {
+    font-size: $fs-12;
+    color: $text-tertiary;
+  }
+  &__progress {
+    margin-top: $s-4;
+    max-width: 320px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  &:hover, &--dragging {
+    border-color: $accent;
+    background: $accent-soft;
+  }
+  &--uploading { pointer-events: none; }
 }
 
-.dropzone:hover,
-.dropzone.is-dragging {
-  border-color: var(--color-primary);
-  background: var(--color-primary-bg);
-}
-
-.dropzone.is-uploading {
-  pointer-events: none;
-  opacity: 0.7;
-}
-
-.dropzone-icon {
-  display: flex;
-  justify-content: center;
-  margin-bottom: var(--space-4);
-  color: var(--color-primary);
-}
-
-.dropzone-main {
-  font-size: var(--text-base);
-  font-weight: 500;
-  color: var(--color-foreground);
-  margin-bottom: var(--space-2);
-}
-
-.dropzone-link {
-  color: var(--color-primary);
-}
-
-.dropzone-sub {
-  font-size: var(--text-xs);
-  color: var(--color-muted-foreground);
-}
-
-/* Upload progress */
-.upload-progress {
-  margin-bottom: var(--space-5);
-}
-
-/* List */
-.doc-list {
-  background: var(--color-card);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  border: 1px solid var(--color-border-light);
+.progress-bar {
+  height: 4px;
+  background: $bg-elevated;
+  border-radius: $r-pill;
   overflow: hidden;
+
+  &__fill {
+    height: 100%;
+    background: $accent;
+    transition: width $dur-base $ease-out;
+  }
+}
+.progress-text {
+  display: block;
+  margin-top: $s-1;
+  font-size: $fs-12;
+  color: $text-tertiary;
+}
+
+.docs-list {
+  background: $bg-surface;
+  border: 1px solid $border-subtle;
+  border-radius: $r-lg;
+  overflow: hidden;
+
+  &__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: $s-4 $s-5;
+    border-bottom: 1px solid $border-subtle;
+    .eyebrow { color: $accent; }
+  }
+
+  &__skel {
+    height: 80px;
+    margin: $s-2;
+    background: linear-gradient(90deg, $bg-surface 0%, $bg-elevated 50%, $bg-surface 100%);
+    background-size: 200% 100%;
+    border-radius: $r-md;
+    animation: shimmer 1.6s linear infinite;
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 .doc-row {
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-4) var(--space-5);
-  border-bottom: 1px solid var(--color-border-light);
-  transition: background var(--transition-fast);
+  gap: $s-4;
+  padding: $s-4 $s-5;
+  border-bottom: 1px solid $border-subtle;
+  transition: background $dur-base $ease-out;
+
+  &:last-child { border-bottom: none; }
+  &:hover { background: $bg-elevated; }
+
+  &__icon {
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+    border-radius: $r-md;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: $font-mono;
+    font-size: $fs-12;
+    font-weight: $fw-semibold;
+  }
+  &__main { flex: 1; min-width: 0; }
+  &__title {
+    font-size: $fs-14;
+    font-weight: $fw-medium;
+    color: $text-primary;
+    margin-bottom: $s-1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: $s-2;
+    font-size: $fs-12;
+    color: $text-secondary;
+  }
+  &__actions {
+    display: flex;
+    gap: $s-1;
+  }
 }
 
-.doc-row:last-child {
-  border-bottom: none;
+.docs-empty {
+  background: $bg-surface;
+  border: 1px dashed $border-strong;
+  border-radius: $r-lg;
 }
 
-.doc-row:hover {
-  background: var(--color-muted);
-}
-
-.doc-icon {
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-md);
-  background: var(--color-muted);
-  flex-shrink: 0;
+}
+.confirm-dialog {
+  width: 360px;
+  background: $bg-surface;
+  border: 1px solid $border-strong;
+  border-radius: $r-lg;
+  padding: $s-6;
+  box-shadow: $shadow-lg;
+
+  &__title {
+    font-family: $font-display;
+    font-size: $fs-20;
+    font-weight: $fw-semibold;
+    margin-bottom: $s-2;
+  }
+  &__desc {
+    color: $text-secondary;
+    font-size: $fs-14;
+    line-height: $lh-snug;
+    margin-bottom: $s-5;
+    strong { color: $accent; }
+  }
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: $s-2;
+  }
 }
 
-.doc-info {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.doc-name {
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--color-foreground);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.doc-meta {
-  font-size: var(--text-xs);
-  color: var(--color-muted-foreground);
-}
-
-/* Status tag（状态色更明显：浅色底 + 彩色文字 + 圆点） */
-.status-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
-  border-radius: var(--radius-full);
-  font-size: var(--text-xs);
-  font-weight: 500;
-  flex-shrink: 0;
-}
-
-.status-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: var(--radius-full);
-}
-
-.doc-actions {
-  display: flex;
-  gap: var(--space-2);
-  flex-shrink: 0;
-}
-
-/* Skeleton */
-.skeleton-row {
-  cursor: default;
-}
-
-.skeleton {
-  border-radius: var(--radius-sm);
-  background: var(--color-muted);
-  animation: skeleton-pulse 1.5s ease-in-out infinite;
-}
-
-.skeleton-icon {
-  width: 40px;
-  height: 40px;
-}
-
-.skeleton-title {
-  width: 200px;
-  height: 14px;
-  margin-bottom: var(--space-2);
-}
-
-.skeleton-meta {
-  width: 140px;
-  height: 12px;
-}
-
-.skeleton-tag {
-  width: 72px;
-  height: 22px;
-  border-radius: var(--radius-full);
-}
-
-@keyframes skeleton-pulse {
-  0%, 100% { opacity: 0.6; }
-  50% { opacity: 1; }
-}
+.fade-enter-active, .fade-leave-active { transition: opacity $dur-base $ease-out; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>
