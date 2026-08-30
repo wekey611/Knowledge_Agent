@@ -1,5 +1,5 @@
 fastapi~=0.137.1
-uvicorn
+uvicorn~=0.49.0
 sqlalchemy~=2.0.50
 pymysql
 cryptography
@@ -16,3 +16,4 @@ python-jose~=3.5.0
 sqladmin~=0.28.0
 aiomysql
 fastapi_mail
+langchain-core~=1.6.1

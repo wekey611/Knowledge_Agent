@@ -1,6 +1,7 @@
-from fastapi import APIRouter, status, Depends, Path, UploadFile, File
+from fastapi import APIRouter, status, Depends, Path, UploadFile, File, BackgroundTasks
 from app import core, schemas, models, services
 from app.core.database import get_db, AsyncSession
+from app.tasks.index_tasks import index_document_task
 
 router = APIRouter(
     prefix="/knowledge-bases",
@@ -13,10 +14,21 @@ async def upload_document(
         kb_id: int = Path(..., description="Knowledge Base ID"),
         current_user: models.user.User = Depends(core.oauth2.get_current_user),
         file: UploadFile = File(...),
+        background_tasks: BackgroundTasks = BackgroundTasks(),  # V2 新增
         db: AsyncSession = Depends(get_db)
 ):
     service = services.document.DocumentService(db)
-    return await service.upload(kb_id=kb_id, user=current_user, file=file)
+    doc = await service.upload(kb_id=kb_id, user=current_user, file=file)
+
+    # V2 新增：上传成功后触发后台索引任务
+    background_tasks.add_task(
+        index_document_task,
+        document_id=doc.id,
+        file_path=doc.storage_key,  # Document 表存的文件路径
+        kb_id=kb_id,
+    )
+
+    return doc
 
 
 @router.get("/{kb_id}/documents", response_model=schemas.document.DocumentList, status_code=status.HTTP_200_OK)

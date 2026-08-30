@@ -36,6 +36,7 @@ app.include_router(routers.organization.router)
 
 app.include_router(routers.knowledgebase.router)
 app.include_router(routers.document.router)
+app.include_router(routers.rag.router)
 
 admin = Admin(app, engine)
 admin.add_view(UserAdmin)

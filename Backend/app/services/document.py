@@ -12,6 +12,11 @@ from app.repositories.document import DocumentRepository
 from app.services.storage import StorageService
 from app.repositories.knowledgebase import KnowledgeRepository
 
+# V2 新增：向量库清理
+from rag.config import load_config
+from rag.factory import build_vector_store
+from rag.exceptions import RetrievalError
+
 PREVIEW_TYPES = {"pdf", "txt", "md"}
 
 
@@ -91,22 +96,34 @@ class DocumentService:
         return document
 
     async def delete(self, kb_id: int, document_id: int, current_user):
-        await core.permissions.check_knowledge_base_owner(
-            kb_id=kb_id, current_user=current_user, db=self.repo.db)
-        document = await self.repo.get_detail(kb_id, document_id)
-        if document is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在")
-        storage_key = await self.repo.delete(kb_id, document_id)
-        if storage_key is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在")
+            await core.permissions.check_knowledge_base_owner(
+                kb_id=kb_id, current_user=current_user, db=self.repo.db)
+            document = await self.repo.get_detail(kb_id, document_id)
+            if document is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在")
+            storage_key = await self.repo.delete(kb_id, document_id)
+            if storage_key is None:
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="文件不存在")
 
-        # 知识库统计自减
-        await self.kb_repo.increment_counts(
-            kb_id=kb_id, doc_delta=-1, chunk_delta=-document.chunk_count
-        )
+            # V2 新增：清理向量库中的 chunks（物理文件清理前）
+            try:
+                config = load_config()
+                vector_store = build_vector_store(config)
+                deleted_chunks = vector_store.delete_by_doc_id(document_id)
+                print(f"✅ 文档 {document_id} 已从向量库清理 {deleted_chunks} 个 chunks")
+            except RetrievalError as e:
+                # 向量库清理失败不影响主流程（DB 记录已删，下次索引会重新覆盖）
+                print(f"⚠️ 向量库清理失败（不影响主流程）: {e}")
+            except Exception as e:
+                print(f"⚠️ 向量库清理异常: {e}")
 
-        # 记录删除成功后再清理物理文件（孤儿文件可容忍，幽灵记录不可）
-        await self.storage.delete(storage_key)
+            # 知识库统计自减
+            await self.kb_repo.increment_counts(
+                kb_id=kb_id, doc_delta=-1, chunk_delta=-document.chunk_count
+            )
+
+            # 记录删除成功后再清理物理文件（孤儿文件可容忍，幽灵记录不可）
+            await self.storage.delete(storage_key)
 
     async def download(
             self,
