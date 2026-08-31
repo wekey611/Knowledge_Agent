@@ -3,7 +3,9 @@ import type { AxiosInstance, InternalAxiosRequestConfig } from 'axios'
 
 const http: AxiosInstance = axios.create({
   baseURL: '/',
-  timeout: 15000,
+  // ⚠️ RAG 问答要调 LLM（MiniMax 通常 5~30s），给 60s 兜底
+  // vite proxy 自己也有 timeout: 120000（见 vite.config.ts）
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
   },

@@ -104,19 +104,35 @@
                 <span class="msg__role">{{ m.role === 'user' ? '你' : 'Agent' }}</span>
                 <span class="msg__time mono faint">{{ m.time }}</span>
               </div>
-              <div class="msg__bubble" :class="{ 'msg__bubble--streaming': m.streaming }">
+              <div
+                class="msg__bubble"
+                :class="{ 'msg__bubble--streaming': m.streaming, 'msg__bubble--error': m.error }"
+              >
+                <p v-if="m.error" class="msg__error">暂时无法回答，请稍后重试</p>
+                <div v-else-if="m.pending" class="msg__pending">
+                  <span class="msg__pending-dot" />
+                  <span class="msg__pending-dot" />
+                  <span class="msg__pending-dot" />
+                  <span class="msg__pending-text">检索中…</span>
+                </div>
+                <div
+                  v-else-if="m.role === 'assistant' && m.markdown"
+                  class="msg__md"
+                  v-html="m.markdown"
+                />
                 <p
                   v-for="(para, i) in m.paragraphs"
                   :key="i"
                   class="msg__para"
                 >{{ para }}</p>
 
-                <!-- Sources -->
-                <div v-if="m.sources && m.sources.length" class="msg__sources">
+                <!-- Sources：保险过滤——若后端漏过滤（top_k 很高/阈值没生效），
+                     前端再做一次 score 过滤，避免寒暄时列一堆无关来源 -->
+                <div v-if="filteredSources(m).length" class="msg__sources">
                   <span class="eyebrow">来源</span>
                   <div class="msg__sources-list">
                     <button
-                      v-for="(s, i) in m.sources"
+                      v-for="(s, i) in filteredSources(m)"
                       :key="i"
                       class="source-chip"
                       @click="openSource(s)"
@@ -195,9 +211,11 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { fetchDocuments, previewDocument, downloadDocument } from '@/api/document'
+import { askRAG } from '@/api/rag'
 import { useAuthStore } from '@/stores/auth'
 import type { DocumentSimple, SourceReference } from '@/types/knowledge'
 import { PARSER_STATUS_LABELS } from '@/types/knowledge'
+import { renderMarkdown } from '@/composables/useMarkdown'
 import DocumentPreviewDrawer from '@/components/knowledge/DocumentPreviewDrawer.vue'
 import DocumentPreviewModal from '@/components/knowledge/DocumentPreviewModal.vue'
 
@@ -216,10 +234,13 @@ const scrollRef = ref<HTMLDivElement | null>(null)
 interface Msg {
   id: string
   role: 'user' | 'assistant'
-  paragraphs: string[]
+  paragraphs: string[]      // 纯文本段落（用户消息 / 错误 fallback）
+  markdown?: string         // agent 答案的渲染后 HTML（与 paragraphs 二选一）
   sources?: SourceReference[]
   time: string
   streaming?: boolean
+  error?: boolean
+  pending?: boolean         // 等待后端响应
 }
 
 const messages = ref<Msg[]>([])
@@ -325,9 +346,9 @@ onMounted(async () => {
   }
   // 加载该 KB 的历史对话
   loadChat()
-  // 首次进入（无历史 + 有文档）才 seed
-  if (messages.value.length === 0 && docs.value.length > 0) {
-    seedDemo()
+  // 首次进入（无历史）就插一条 agent 问好消息，让用户知道对话入口
+  if (messages.value.length === 0) {
+    seedGreeting()
     saveChat()
   }
 })
@@ -337,32 +358,18 @@ watch(kbId, () => {
   loadChat()
 })
 
-function seedDemo() {
-  const t = (offset: number) => {
-    const d = new Date(Date.now() - offset)
-    return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
-  }
+function seedGreeting() {
+  const docCount = docs.value.length
+  const now = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+  const greeting = docCount > 0
+    ? `你好！我是这个知识库的智能助手。\n\n当前知识库有 **${docCount} 份文档**，你可以问任何与这些文档相关的问题，我会基于文档内容给你答案并标注引用来源。`
+    : `你好！我是这个知识库的智能助手。\n\n当前知识库还没有文档，先去 **文档** Tab 上传一些内容，我就能基于它们回答你的问题了。`
   messages.value.push({
-    id: 'm1',
-    role: 'user',
-    paragraphs: ['这份知识库里有哪些产品相关的内容？'],
-    time: t(60_000),
-  })
-  messages.value.push({
-    id: 'm2',
+    id: 'greet-' + Date.now(),
     role: 'assistant',
-    paragraphs: [
-      `基于当前 ${docs.value.length} 份文档的检索结果，我整理出三类主要内容：`,
-      '产品手册中描述了核心功能的实现细节；会议纪要里记录了最近两次需求评审的结论；调研报告汇总了用户访谈中的高频反馈。',
-      '需要我针对哪一类展开深入分析？',
-    ],
-    sources: docs.value.slice(0, 2).map((d, i) => ({
-      documentId: d.id,
-      documentTitle: d.title,
-      snippet: '相关片段将在这里展示，包含最相关的句子片段和上下文…',
-      score: 0.92 - i * 0.07,
-    })),
-    time: t(50_000),
+    paragraphs: [],
+    markdown: renderMarkdown(greeting),
+    time: now,
   })
 }
 
@@ -380,41 +387,63 @@ function send() {
   autoResize()
   scrollToBottom()
   saveChat()
-  mockReply(text)
+  realReply(text)
 }
 
-function mockReply(question: string) {
-  const id = String(Date.now()) + '-a'
+async function realReply(question: string) {
+  // 1. 先放一个 pending 气泡
   const placeholder: Msg = {
-    id,
+    id: String(Date.now()) + '-a',
     role: 'assistant',
-    paragraphs: [''],
-    sources: docs.value.slice(0, Math.min(3, docs.value.length)).map((d, i) => ({
-      documentId: d.id,
-      documentTitle: d.title,
-      snippet: '相关片段将在这里展示，包含最相关的句子片段和上下文…',
-      score: 0.88 - i * 0.08,
-    })),
+    paragraphs: [],
     time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-    streaming: true,
+    pending: true,
   }
   messages.value.push(placeholder)
   scrollToBottom()
 
-  // 模拟打字机效果
-  const fullText = `根据检索到 ${placeholder.sources!.length} 份相关文档，关于「${question}」我整理如下：\n\n这些文档从不同角度覆盖了你的问题。核心观点集中在第一段，第二段提供了具体的实现细节。建议先阅读引用度最高的文档，再展开。\n\n如需深入某个文档的具体章节，可以告诉我。`
-  let i = 0
-  const interval = setInterval(() => {
-    i += 2
-    const cur = fullText.slice(0, i)
-    placeholder.paragraphs = cur.split('\n')
-    if (i >= fullText.length) {
-      clearInterval(interval)
-      placeholder.streaming = false
+  try {
+    const resp = await askRAG(kbId.value, question)
+    // 关键：用下标重新赋值整个元素，强制 Vue 响应式刷新（直接改属性在某些边缘场景不会触发）
+    // 见 https://vuejs.org/guide/essentials/list.html#maintaining-state-with-key
+    const idx = messages.value.indexOf(placeholder)
+    if (idx >= 0) {
+      messages.value[idx] = {
+        ...placeholder,
+        pending: false,
+        markdown: renderMarkdown(resp.answer || '（无回答）'),
+        paragraphs: [],
+        sources: (resp.sources || []).map((s) => ({
+          documentId: 0,
+          documentTitle: s.source_file,
+          snippet: s.preview,
+          score: s.score ?? 0,
+        })),
+      }
     }
+  } catch {
+    const idx = messages.value.indexOf(placeholder)
+    if (idx >= 0) {
+      messages.value[idx] = {
+        ...placeholder,
+        pending: false,
+        error: true,
+        paragraphs: [],
+      }
+    }
+  } finally {
     saveChat()
     scrollToBottom()
-  }, 30)
+  }
+}
+
+/** 过滤低分 sources（前端保险：score < 0.5 直接丢）。
+ *  后端已经在 rag_service.py 做过这层过滤，这里是兜底，
+ *  防止后端忘了过滤或后端阈值改了前后端不一致。 */
+const MIN_SOURCE_SCORE = 0.5
+function filteredSources(m: Msg): SourceReference[] {
+  if (!m.sources || m.sources.length === 0) return []
+  return m.sources.filter((s) => (s.score || 0) >= MIN_SOURCE_SCORE)
 }
 
 function applyTemplate(t: { prompt: string }) {
@@ -677,13 +706,17 @@ function scrollToBottom() {
   flex-direction: column;
   gap: $s-6;
   padding-bottom: $s-6;
+
+  // 用户消息贴右，agent 消息贴左，不再整体居中
+  .msg--user { align-self: flex-end; max-width: 80%; }
+  .msg--assistant { align-self: flex-start; max-width: 80%; }
 }
 
 .msg {
   display: flex;
   gap: $s-3;
-  max-width: 760px;
-  margin: 0 auto;
+  // max-width 由父 .messages 控制（user/assistant 各自 max-width: 80%）
+  width: 100%;
 
   &--user {
     flex-direction: row-reverse;
@@ -747,11 +780,134 @@ function scrollToBottom() {
     &--streaming {
       min-height: 48px;
     }
+
+    &--error {
+      background: $danger-soft;
+      border-color: rgba(229, 72, 77, 0.3);
+    }
   }
+
+  &__error {
+    margin: 0;
+    color: $danger;
+    font-size: $fs-13;
+  }
+
+  &__pending {
+    display: inline-flex;
+    align-items: center;
+    gap: $s-2;
+    color: $text-tertiary;
+    font-size: $fs-13;
+  }
+  &__pending-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: $text-tertiary;
+    animation: pending-pulse 1.2s $ease-out infinite;
+    &:nth-child(2) { animation-delay: 0.15s; }
+    &:nth-child(3) { animation-delay: 0.3s; }
+  }
+  &__pending-text { color: $text-secondary; }
 
   &__para {
     margin: 0 0 $s-2 0;
     &:last-child { margin-bottom: 0; }
+  }
+
+  // Markdown 渲染区域（agent 答案）
+  &__md {
+    line-height: $lh-normal;
+    color: $text-primary;
+
+    // 覆盖 markdown-it 默认样式，适配项目深色主题
+    > :first-child { margin-top: 0; }
+    > :last-child { margin-bottom: 0; }
+    h1, h2, h3, h4, h5, h6 {
+      font-family: $font-display;
+      font-weight: $fw-semibold;
+      color: $text-primary;
+      line-height: 1.3;
+      margin: $s-4 0 $s-2;
+    }
+    h1 { font-size: $fs-20; }
+    h2 { font-size: $fs-17; }
+    h3 { font-size: $fs-15; }
+    h4, h5, h6 { font-size: $fs-14; }
+    p { margin: 0 0 $s-2 0; }
+    p:last-child { margin-bottom: 0; }
+    strong { font-weight: $fw-semibold; color: $text-primary; }
+    em { font-style: italic; color: $text-secondary; }
+    ul, ol { padding-left: $s-6; margin: 0 0 $s-2 0; }
+    li { margin-bottom: 2px; }
+    a {
+      color: $accent;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+      &:hover { color: $accent-hover; }
+    }
+    blockquote {
+      margin: $s-2 0;
+      padding: $s-2 $s-4;
+      border-left: 3px solid $accent;
+      background: $accent-soft;
+      color: $text-secondary;
+      border-radius: 0 $r-sm $r-sm 0;
+    }
+    code:not(pre code) {
+      font-family: $font-mono;
+      font-size: 0.9em;
+      padding: 2px 6px;
+      background: $bg-inset;
+      border: 1px solid $border-subtle;
+      border-radius: $r-sm;
+      color: $accent;
+    }
+    pre {
+      margin: $s-2 0;
+      padding: $s-3 $s-4;
+      background: #0d1117;  // github-dark 背景
+      border: 1px solid $border-subtle;
+      border-radius: $r-md;
+      overflow-x: auto;
+      font-family: $font-mono;
+      font-size: $fs-13;
+      line-height: 1.5;
+      code {
+        font-family: inherit;
+        background: transparent;
+        border: none;
+        padding: 0;
+        color: #c9d1d9;  // 基础前景色，highlight.js token 会覆盖
+      }
+    }
+    // highlight.js token 颜色（github-dark 调色板精简版）
+    .hljs-comment, .hljs-quote { color: #8b949e; font-style: italic; }
+    .hljs-keyword, .hljs-selector-tag { color: #ff7b72; }
+    .hljs-string, .hljs-attr { color: #a5d6ff; }
+    .hljs-number, .hljs-literal { color: #79c0ff; }
+    .hljs-title, .hljs-name, .hljs-section { color: #d2a8ff; }
+    .hljs-built_in, .hljs-type { color: #ffa657; }
+    .hljs-variable, .hljs-template-variable { color: #ffa657; }
+    .hljs-tag { color: #7ee787; }
+    hr {
+      border: none;
+      border-top: 1px solid $border-subtle;
+      margin: $s-4 0;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin: $s-2 0;
+      font-size: $fs-13;
+      th, td {
+        padding: $s-2 $s-3;
+        border: 1px solid $border-subtle;
+        text-align: left;
+      }
+      th { background: $bg-elevated; font-weight: $fw-medium; }
+    }
   }
 
   &__sources {
@@ -802,6 +958,10 @@ function scrollToBottom() {
   animation: blink 1s steps(2) infinite;
 }
 @keyframes blink { 50% { opacity: 0; } }
+@keyframes pending-pulse {
+  0%, 80%, 100% { opacity: 0.25; transform: translateY(0); }
+  40% { opacity: 1; transform: translateY(-2px); }
+}
 
 .source-preview {
   margin: 0 $s-6 $s-3;

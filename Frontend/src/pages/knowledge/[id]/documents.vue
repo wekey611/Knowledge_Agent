@@ -240,10 +240,12 @@ async function handleFiles(files: File[]) {
   uploadProgress.value = 0
   let success = 0
   let lastError = ''
+  const uploadedIds: number[] = []  // 收集成功上传的 doc.id，给轮询用
   for (const file of files) {
     try {
-      await uploadDocument(props.kbId, file)
+      const doc = await uploadDocument(props.kbId, file)
       success++
+      if (doc?.id) uploadedIds.push(doc.id)
       uploadProgress.value = Math.round((success / files.length) * 100)
     } catch (e: any) {
       lastError =
@@ -258,9 +260,42 @@ async function handleFiles(files: File[]) {
   if (success > 0) {
     showToast(success === files.length ? `已上传 ${success} 个文档` : `成功 ${success}/${files.length}`, 'success')
     await loadDocuments()
+    // 后台轮询各文档解析状态（最多 60s），完成/失败 toast 提示
+    uploadedIds.forEach((id) => pollIndexStatus(id))
   } else {
     showToast(`上传失败：${lastError}`)
   }
+}
+
+/** 轮询单个文档索引状态：3s/次，最多 20 次（≈60s）
+ *  用 fetchDocuments 拿全列表（DocumentDetail 没有 parser_status 字段，
+ *  DocumentSimple 才有；代价是每次多拉一次列表，但 KB 内文档量小可接受）
+ */
+async function pollIndexStatus(docId: number) {
+  const MAX_ROUNDS = 20
+  const INTERVAL_MS = 3000
+  for (let i = 0; i < MAX_ROUNDS; i++) {
+    await new Promise((r) => setTimeout(r, INTERVAL_MS))
+    try {
+      const res = await fetchDocuments(props.kbId)
+      const doc = res.data.find((d) => d.id === docId)
+      if (!doc) return  // 文档被删了
+      if (doc.parser_status === 'completed') {
+        showToast(`「${doc.title}」已索引完成，可以对话了`, 'success')
+        await loadDocuments()  // 刷新 chunk_count
+        return
+      }
+      if (doc.parser_status === 'failed') {
+        showToast(`「${doc.title}」索引失败，请重试或删除`, 'error')
+        await loadDocuments()
+        return
+      }
+    } catch {
+      /* 单次失败不终止轮询 */
+    }
+  }
+  // 超时：静默，让用户去文档 Tab 自己看（避免打扰）
+  await loadDocuments()
 }
 
 async function handleDownload(doc: DocumentSimple) {

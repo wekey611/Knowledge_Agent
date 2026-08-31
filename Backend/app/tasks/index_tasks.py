@@ -18,8 +18,7 @@ from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.config import settings
-from app.core.database import AsyncSessionLocal
+from app.core.database import SessionLocal
 from app.models.knowledge import Document, ParserStatus
 from rag.config import load_config
 from rag.exceptions import IndexingError
@@ -41,7 +40,7 @@ async def index_document_task(document_id: int, file_path: str, kb_id: int):
         waiting → parsing → completed（成功）
         waiting → parsing → failed（失败）
     """
-    async with AsyncSessionLocal() as db:
+    async with SessionLocal() as db:
         # 1. 更新状态为 parsing
         doc = await _get_document(db, document_id)
         if not doc:

@@ -36,6 +36,8 @@ export default defineConfig({
       '/knowledge-bases': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
+        // ⚠️ RAG 问答要调 LLM，MiniMax 通常 5~30s，必须放长
+        timeout: 120000,
       },
     },
   },

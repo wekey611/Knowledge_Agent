@@ -6,6 +6,8 @@ V3 接口：
         body: {"query": "...", "top_k": 5}
         response: {"answer": "...", "sources": [...], "query": "..."}
 """
+from typing import Optional
+
 from fastapi import APIRouter, Depends, Path
 from pydantic import BaseModel, Field
 
@@ -23,7 +25,7 @@ router = APIRouter(
 class QueryRequest(BaseModel):
     """查询请求体。"""
     query: str = Field(..., min_length=1, max_length=2000, description="用户问题")
-    top_k: int = Field(default=None, ge=1, le=20, description="检索数量（默认 5）")
+    top_k: Optional[int] = Field(default=None, ge=1, le=20, description="检索数量（默认 5）")
 
 
 class SourceItem(BaseModel):

@@ -12,7 +12,11 @@ class UserCreate(BaseModel):
 class UserOut(BaseModel):
     id: int
     username: str
-    email: EmailStr
+    # NOTE: 用 str 而不是 EmailStr，因为：
+    # 1) 数据库里可能存了 .local / .test 等 RFC2606 保留域名
+    #    （如 ragbot@test.local 测试用户），pydantic EmailStr 会拒
+    # 2) /me 校验失败会让前端拿不到 user.id，导致所有权限判断（canManage）失效
+    email: str
 
     model_config = {"from_attributes": True}
 
