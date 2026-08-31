@@ -2,6 +2,31 @@
 
 本项目变更记录，按日期倒序排列。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
+## [2026-08-30]
+
+### 新增
+- **RAGAS 评估系统**（V5 升级，V4 保留为 legacy）：
+  - `rag/evaluation/ragas_compat.py`：兼容补丁（stub 缺失的 langchain_community 子模块）
+  - `rag/evaluation/ragas_judge.py`：`MMXRagasLLM`（包装 mmx OpenAI 兼容接口为 RAGAS LLM judge）+ `SiliconFlowRagasEmbeddings`（硅基流动 BGE-M3 作为 RAGAS embeddings）
+  - `rag/evaluation/dataset_v2.py`：`EvalSampleV2` 数据类，支持 RAGAS `reference_contexts` 字段
+  - `rag/scripts/evaluate_ragas.py`：主评估脚本（支持 `--dry-run` / `--llm mmx|fake` / `--metrics`）
+  - 4 个 RAGAS 指标：Faithfulness / Answer Relevancy / Context Precision / Context Recall
+- **样本格式升级**：`tests/test_rag/datasets/sample_qa.json` 加 `reference_contexts` 字段（每条样本从原文摘录的完整段落）
+- **文档**：`docs/rag-evaluation-v2.md`：RAGAS 接入决策记录 + 上手指南
+
+### 变更
+- `rag/scripts/evaluate.py`（V4）：顶部加 LEGACY 注释，保留但不再推荐
+- `rag/evaluation/metrics.py`（V4）：顶部加 LEGACY 注释
+- RAGAS 版本锁定 `0.2.10`（最新 0.4.3 有 langchain_community 兼容问题）
+
+### 依赖
+- 新增：`ragas==0.2.10`（自动拉入 langchain-openai / langchain-community 等依赖）
+
+### 待办
+- 真跑一次 RAGAS 评估（用户触发），作为 V5 baseline
+- chunk_size 扫描脚本（用 RAGAS 4 指标找最优值，待 RAGAS 真跑通过后做）
+- 评测样本从 4 条扩到 10-15 条（覆盖多场景）
+
 ## [2026-08-14]
 
 ### 新增

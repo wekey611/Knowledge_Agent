@@ -1,13 +1,19 @@
 """
-简化版评估指标。
+简化版评估指标（V4，LEGACY）。
+
+⚠️ V5 RAGAS 接入后，此模块保留作为 keyword 匹配的简易 fallback。
+新代码请用：rag/evaluation/ragas_judge.py + ragas 库。
 
 V4 自建指标（不需要 LLM-as-judge）：
     - Context Recall@K：检索结果中是否包含相关 chunk
     - Context Precision@K：检索结果中相关 chunk 的占比
     - Answer Match（简单字符串包含）：答案是否包含期望关键词
 
-V5 可选升级：
-    - 用 RAGAS / DeepEval 算忠实度、答案相关性等
+V5 RAGAS 指标：
+    - Faithfulness：答案是否基于 context（LLM 评）
+    - Answer Relevancy：答案是否答了问题（LLM 评）
+    - Context Precision：检索结果中相关 chunk 的占比（LLM + Embedding）
+    - Context Recall：是否召回了所有相关 chunk（LLM 评）
 """
 from typing import List
 

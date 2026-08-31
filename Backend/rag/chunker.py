@@ -224,6 +224,10 @@ class RecursiveChunker:
         current_offset = base_offset  # 当前 chunk 在原文中的起始位置
         separator_len = len(separator) if separator else 0
 
+        # 累计到当前 piece 之前的所有 pieces 总长度
+        # （按需计算，因为 piece 在循环开始前未定义）
+        offset_before_piece = 0
+
         for piece in pieces:
             piece_length = len(piece)
 
@@ -233,25 +237,29 @@ class RecursiveChunker:
                 if current_chunk:
                     merged = self._join_pieces(current_chunk, separator)
                     chunks.append((merged, current_offset))
-                    # overlap 处理：回退 chunk_overlap 字符
-                    current_chunk, current_length, current_offset = (
-                        self._apply_overlap(merged, separator)
-                    )
+                    # overlap 之后,offset = 刚 append 的 merged 末尾 - overlap
+                    if self.chunk_overlap > 0 and len(merged) > self.chunk_overlap:
+                        current_offset = chunks[-1][1] + len(merged) - self.chunk_overlap
+                    else:
+                        current_offset = chunks[-1][1] + len(merged)
 
                 # 递归切这个超长 piece
-                # 计算它在原文中的偏移
-                piece_offset = base_offset + self._calculate_offset(
-                    pieces, piece, current_chunk
-                )
+                # 它的 offset = base_offset + 之前累计的所有 pieces 长度
+                piece_offset = base_offset + offset_before_piece
                 sub_chunks = self._split_text_with_positions(
                     piece, remaining_separators, piece_offset
                 )
                 chunks.extend(sub_chunks)
 
-                # 重置 current（因为 sub_chunks 已经处理完）
+                # 后续 piece 的 offset 应接着最后一个 sub_chunk 的结尾
+                if sub_chunks:
+                    last_sub_text, last_sub_start = sub_chunks[-1]
+                    current_offset = last_sub_start + len(last_sub_text)
+                else:
+                    current_offset = base_offset + offset_before_piece + len(piece)
                 current_chunk = []
                 current_length = 0
-                current_offset = base_offset + len(text_segment_before(pieces, piece, separator))
+                offset_before_piece += len(piece) + separator_len
                 continue
 
             # 累加 piece 到 current_chunk
@@ -262,12 +270,18 @@ class RecursiveChunker:
                 chunks.append((merged, current_offset))
 
                 # overlap 处理
-                current_chunk, current_length, current_offset = self._apply_overlap(
+                current_chunk, current_length, _ = self._apply_overlap(
                     merged, separator
                 )
+                # 下一个 chunk 的起始 offset = 刚收尾 chunk 末尾 - overlap
+                if self.chunk_overlap > 0 and len(merged) > self.chunk_overlap:
+                    current_offset = chunks[-1][1] + len(merged) - self.chunk_overlap
+                else:
+                    current_offset = chunks[-1][1] + len(merged)
 
             current_chunk.append(piece)
             current_length += piece_length + separator_len
+            offset_before_piece += len(piece) + separator_len
 
         # 收尾最后一段
         if current_chunk:
@@ -312,12 +326,6 @@ class RecursiveChunker:
             chunk_text = text[i:i + self.chunk_size]
             chunks.append((chunk_text, base_offset + i))
         return chunks
-
-    def _calculate_offset(self, pieces, target_piece, current_chunk) -> int:
-        """计算 target_piece 在原文中的偏移（简化估算）。"""
-        # 这部分在 _merge_pieces 里实际通过累加计算更准确
-        # 这里保留为占位，简化实现
-        return 0
 
 
 def text_segment_before(pieces, target_piece, separator):

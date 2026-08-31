@@ -19,6 +19,7 @@ storage/
 handoff.md
 chroma_data/
 test_data/
+chroma_sweep_data/
 
 # ==================== Virtual environment ====================
 .venv/
