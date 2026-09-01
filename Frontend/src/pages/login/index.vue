@@ -102,8 +102,8 @@ async function handleLogin() {
     try {
       const me = await fetchMyProfile()
       console.log('[login] /me success:', me)
-      // 防御：确保是合法用户对象（id 为数字且 email 存在），否则保留占位
-      if (me && typeof me === 'object' && typeof me.id === 'number' && me.email) {
+      // 防御：确保是合法用户对象（id 为数字且 email、role 存在），否则保留占位
+      if (me && typeof me === 'object' && typeof me.id === 'number' && me.email && me.role) {
         auth.setAuth(token.access_token, me)
       } else {
         console.warn('[login] /me returned invalid shape, keep placeholder', me)

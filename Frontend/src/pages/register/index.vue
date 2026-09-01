@@ -59,20 +59,22 @@
         </svg>
       </div>
       <h3>账号已创建</h3>
-      <p>欢迎加入 · 现在可以登录了。</p>
-      <router-link to="/auth/login" class="btn btn--primary">前往登录</router-link>
+      <p>欢迎加入 · {{ countdown }} 秒后自动跳转登录…</p>
+      <router-link to="/auth/login" class="btn btn--primary">立即前往登录</router-link>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { inviteInfo, register } from '@/api/auth'
 import type { InviteTokenInfo } from '@/types/api'
 
 const route = useRoute()
+const router = useRouter()
 const token = (route.query.token as string) || ''
+const countdown = ref(3)
 
 const tokenInfo = ref<InviteTokenInfo | null>(null)
 const loadingToken = ref(true)
@@ -110,6 +112,14 @@ async function handleSubmit() {
   try {
     await register({ token, username: form.username, password: form.password })
     success.value = true
+    // 注册成功：倒计时 3 秒后自动跳登录页
+    const timer = setInterval(() => {
+      countdown.value--
+      if (countdown.value <= 0) {
+        clearInterval(timer)
+        router.push('/auth/login')
+      }
+    }, 1000)
   } catch (e: any) {
     error.value = e?.response?.data?.detail || '注册失败，请稍后再试'
   } finally {

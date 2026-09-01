@@ -1,5 +1,5 @@
 import http from './http'
-import type { TokenResponse, UserRequestInput, UserRequestOutput, InviteTokenInfo, UserRegisterInput, UserRegisterOutput, User, ApproveResponse } from '@/types/api'
+import type { TokenResponse, UserRequestInput, UserRequestOutput, InviteTokenInfo, UserRegisterInput, UserRegisterOutput, User } from '@/types/api'
 
 export async function login(email: string, password: string): Promise<TokenResponse> {
   const formData = new URLSearchParams()
@@ -29,11 +29,6 @@ export async function register(data: UserRegisterInput): Promise<UserRegisterOut
 export async function fetchMyProfile(): Promise<User> {
   // 后端目前没有 /me 接口，这里用 admin/requests 或其他推断；保留接口待后端补
   const res = await http.get<User>('/me')
-  return res.data
-}
-
-export async function approveRequest(requestId: number): Promise<ApproveResponse> {
-  const res = await http.post<ApproveResponse>(`/user/request/${requestId}/approve`)
   return res.data
 }
 

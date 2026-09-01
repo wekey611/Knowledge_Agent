@@ -318,7 +318,12 @@ const templates = [
 
 const canSend = computed(() => input.value.trim().length > 0)
 
-const chatKey = computed(() => `demo_chat_${kbId.value}`)
+const chatKey = computed(() => {
+  // 必须包含 userId,避免换账号后读到别人的历史对话。
+  // 未登录态返回带 guest 的占位 key,等价于禁用本地缓存。
+  const uid = auth.user?.id ?? 'guest'
+  return `demo_chat_${uid}_${kbId.value}`
+})
 
 function loadChat() {
   try {

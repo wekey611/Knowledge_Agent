@@ -94,7 +94,8 @@
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { approveRequest, listRequests } from '@/api/auth'
+import { listRequests } from '@/api/auth'
+import { approveRequest } from '@/api/admin'
 import EmptyState from '@/components/common/EmptyState.vue'
 import type { ApproveResponse, UserRequestOutput } from '@/types/api'
 

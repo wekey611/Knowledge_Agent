@@ -1,6 +1,9 @@
 from functools import lru_cache
+
+import certifi
 from fastapi_mail import FastMail, ConnectionConfig, MessageSchema
 from pydantic import SecretStr
+
 from app import settings
 
 
@@ -17,6 +20,10 @@ def get_mail_config() -> ConnectionConfig:
         MAIL_SSL_TLS=settings.MAIL_SSL_TLS,
         USE_CREDENTIALS=True,
         VALIDATE_CERTS=True,
+        # 显式指定 CA bundle:部分精简 Linux(BT/宝塔/Alpine + uvloop)
+        # 不自带 ca-certificates,会触发 `unable to get local issuer certificate`。
+        # certifi 是 Python 生态标准证书包,跟着代码走,跨平台稳定。
+        CERT_BUNDLE=certifi.where(),
     )
 
 

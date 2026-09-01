@@ -27,10 +27,6 @@
           <span class="stat-card__icon" :style="{ color: s.color }" v-html="s.icon" />
         </div>
         <div class="stat-card__value mono">{{ s.value }}</div>
-        <div class="stat-card__delta" :class="s.deltaClass">
-          <span>{{ s.delta }}</span>
-          <span class="faint mono">{{ s.deltaUnit }}</span>
-        </div>
       </article>
     </section>
 
@@ -105,19 +101,14 @@
             <span class="quick-card__label">浏览知识库</span>
             <span class="quick-card__hint">查看所有 KB</span>
           </button>
-          <button class="quick-card quick-card--accent" @click="soon">
-            <span class="quick-card__icon accent-text">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.93 4.93l2.12 2.12M16.95 16.95l2.12 2.12M2 12h3M19 12h3M4.93 19.07l2.12-2.12M16.95 7.05l2.12-2.12"/></svg>
-            </span>
-            <span class="quick-card__label">Agent 对话</span>
-            <span class="quick-card__hint">即将上线</span>
-          </button>
         </div>
 
         <div class="hint-card">
-          <span class="eyebrow">提示</span>
+          <span class="eyebrow">新手上路</span>
           <p>
-            RAG 检索和 Agent 问答正在接入中。后端 API 完成后即可使用。
+            第一次使用？先到
+            <router-link to="/knowledge" class="hint-card__link">公共知识库</router-link>
+            翻翻示例文档，里面有完整的使用说明。
           </p>
         </div>
       </aside>
@@ -225,10 +216,6 @@ function formatTime(iso: string) {
   } catch {
     return ''
   }
-}
-
-function soon() {
-  alert('RAG 检索 + Agent 问答功能即将上线')
 }
 </script>
 
@@ -487,6 +474,12 @@ function soon() {
     font-size: $fs-13;
     color: $text-secondary;
     line-height: $lh-snug;
+  }
+  &__link {
+    color: $accent;
+    text-decoration: none;
+    font-weight: $fw-medium;
+    &:hover { color: $accent-hover; text-decoration: underline; }
   }
 }
 

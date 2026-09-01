@@ -17,6 +17,8 @@ class UserOut(BaseModel):
     #    （如 ragbot@test.local 测试用户），pydantic EmailStr 会拒
     # 2) /me 校验失败会让前端拿不到 user.id，导致所有权限判断（canManage）失效
     email: str
+    role: str
+    created_at: datetime
 
     model_config = {"from_attributes": True}
 
