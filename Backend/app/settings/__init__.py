@@ -26,3 +26,8 @@ MAIL_SSL_TLS = os.environ.get("MAIL_SSL_TLS", "True").lower() == "true"
 
 # 个人知识库数量限制
 PERSONAL_KB_LIMIT = 5
+
+# sqladmin 后台独立账号(运维侧使用,不与用户表耦合)
+# 未配置时启动会直接报错,防止 /admin 裸奔
+ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
